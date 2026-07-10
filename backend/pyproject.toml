@@ -1,0 +1,19 @@
+[project]
+name = "backend"
+version = "0.1.0"
+description = "Absences backend API (FastAPI + SQLAlchemy)"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.29",
+    "sqlalchemy>=2.0",
+    "pydantic-settings>=2.0",
+    "psycopg[binary]>=3.1",
+    "models",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+models = { workspace = true }

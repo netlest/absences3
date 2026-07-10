@@ -1,0 +1,12 @@
+[project]
+name = "models"
+version = "0.1.0"
+description = "Shared SQLAlchemy models for the absences apps"
+requires-python = ">=3.10"
+dependencies = [
+    "sqlalchemy>=2.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

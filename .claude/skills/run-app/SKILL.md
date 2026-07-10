@@ -1,42 +1,44 @@
 ---
 name: run-app
-description: Launch and drive the FastAPI absences-calendar app (uv + uvicorn on port 8000). Use when asked to run, start, or verify the app in this repo.
+description: Launch and drive the absences-calendar apps (uv workspace; frontend on 8000, backend on 8001). Use when asked to run, start, or verify the apps in this repo.
 ---
 
-# Run the absences-calendar app
+# Run the absences-calendar apps
 
-FastAPI + Jinja2 app rendering the monthly absence calendar as an HTML/CSS
-grid. No database, no env vars, no build step — uv creates the venv and
-installs dependencies from `pyproject.toml` on the first `uv run`.
+A uv workspace with two packages sharing one venv and lockfile at the repo
+root. No database, no env vars, no build step — uv creates the venv and
+installs dependencies on the first `uv run`.
+
+- `frontend/` — the calendar UI (FastAPI + Jinja2, Tailwind via Play CDN)
+- `backend/` — minimal API (FastAPI + SQLAlchemy)
 
 ## Launch
 
-From the repo root (`fastapi_calendar/`), start the server in the background:
+From the repo root, start each server in the background:
 
 ```bash
-uv run uvicorn app:app --reload --port 8000
+uv run --directory frontend uvicorn app:app --reload --port 8000
+uv run --directory backend  uvicorn app:app --reload --port 8001
 ```
 
-(Same command as `./start.sh`, plus an explicit port.) `--reload` picks up
-code changes automatically, so there is no need to restart after edits.
+`--reload` picks up code changes automatically, so there is no need to
+restart after edits. If a port is taken, pick another and adjust the URLs.
 
-If port 8000 is taken, pick another port and adjust the URLs below.
+## Verify they're up
 
-## Verify it's up
-
-Poll until the server answers, then check the homepage:
+Poll until the servers answer:
 
 ```bash
 for i in $(seq 1 20); do
-  curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/ && break
-  sleep 0.5
+  curl -sf -o /dev/null http://127.0.0.1:8000/ && break; sleep 0.5
 done
 ```
 
-Expect `200` and an HTML body whose `<title>` is the current month
-(e.g. `July 2026`).
+- Frontend `/` returns 200 HTML whose `<title>` is the current month
+  (e.g. `July 2026`).
+- Backend `/` returns `{"service":"absences-backend","status":"ok",...}`.
 
-## Drive it
+## Drive the frontend
 
 - `/` — current month
 - `/{month}/{year}` — a specific month (month first!), e.g. `curl -s http://127.0.0.1:8000/12/2026`
@@ -46,7 +48,7 @@ Expect `200` and an HTML body whose `<title>` is the current month
 ## Tests
 
 ```bash
-uv run pytest
+uv run --directory frontend pytest
 ```
 
-Installs the dev group (pytest, httpx) automatically and runs `tests/`.
+Installs the dev group (pytest, httpx2) automatically and runs `frontend/tests/`.
