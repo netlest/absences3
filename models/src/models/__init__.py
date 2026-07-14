@@ -1,7 +1,8 @@
 """Shared SQLAlchemy models for the absences apps.
 
 Mirrors the PostgreSQL DDL: users, groups, objects, absence_types,
-absences, user_groups (association) and holidays.
+absences, user_groups (association), holidays and the read-only
+v_absences view.
 """
 
 from datetime import date, datetime
@@ -17,12 +18,20 @@ __all__ = [
     "AbsenceType",
     "Absence",
     "Holiday",
+    "VAbsence",
     "user_groups",
+    "create_all",
 ]
 
 
 class Base(DeclarativeBase):
     pass
+
+
+def create_all(bind) -> None:
+    """Create all tables, skipping mappings of database views."""
+    tables = [t for t in Base.metadata.tables.values() if not t.info.get("is_view")]
+    Base.metadata.create_all(bind, tables=tables)
 
 
 user_groups = Table(
@@ -114,6 +123,30 @@ class Absence(Base):
 
     object: Mapped[Object | None] = relationship(back_populates="absences")
     type: Mapped[AbsenceType | None] = relationship(back_populates="absences")
+
+
+class VAbsence(Base):
+    """Read-only mapping of the v_absences view.
+
+    Each absence is split into one row per calendar month it spans, so the
+    underlying absence id repeats across rows; (id, abs_date_start) is the
+    composite identity. Never insert/update/delete through this model.
+    """
+
+    __tablename__ = "v_absences"
+    __table_args__ = {"info": {"is_view": True}}
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    abs_date_start: Mapped[date] = mapped_column(Date, primary_key=True)
+    abs_date_end: Mapped[date] = mapped_column(Date)
+    object_id: Mapped[int | None]
+    group_id: Mapped[int | None]
+    user_id: Mapped[int | None]
+    type_id: Mapped[int | None]
+    description: Mapped[str | None] = mapped_column(String(150))
+    at_color: Mapped[str | None] = mapped_column(String(30))
+    at_name: Mapped[str | None] = mapped_column(String(50))
+    duration: Mapped[int]
 
 
 class Holiday(Base):

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ month_name }} {{ year }}</title>
+  <title>{{ title }}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
@@ -95,52 +95,85 @@
     <nav class="mx-auto max-w-screen-2xl flex items-center gap-3 px-4 sm:px-6 h-14 text-sm">
       <span class="text-base font-medium text-gray-800 mr-4">Absences Calendar</span>
 
-      <a href="/{{ '%02d'|format(prev_month) }}/{{ prev_year }}"
+      <span class="text-gray-700">Group</span>
+      <select id="nav-group" onchange="navGo()"
+              class="rounded-md border border-gray-300 bg-gray-50 px-2 py-1.5 text-gray-700 hover:bg-gray-200 transition-colors">
+        {% for g in groups %}
+        <option value="{{ g.id }}" {{ 'selected' if g.id == sel_group else '' }}>{{ g.name }}</option>
+        {% endfor %}
+      </select>
+
+      <span class="text-gray-700">Show</span>
+      <select id="nav-count" onchange="navGo()"
+              class="rounded-md border border-gray-300 bg-gray-50 px-2 py-1.5 text-gray-700 hover:bg-gray-200 transition-colors">
+        {% for n in range(1, 13) %}
+        <option value="{{ n }}" {{ 'selected' if n == sel_count else '' }}>{{ n }}</option>
+        {% endfor %}
+      </select>
+      <span class="text-gray-700">Months. Start with</span>
+      <select id="nav-month" onchange="navGo()"
+              class="rounded-md border border-gray-300 bg-gray-50 px-2 py-1.5 text-gray-700 hover:bg-gray-200 transition-colors">
+        {% for n in range(1, 13) %}
+        <option value="{{ n }}" {{ 'selected' if n == sel_month else '' }}>{{ n }}</option>
+        {% endfor %}
+      </select>
+      <select id="nav-year" onchange="navGo()"
+              class="rounded-md border border-gray-300 bg-gray-50 px-2 py-1.5 text-gray-700 hover:bg-gray-200 transition-colors">
+        {% for y in year_options %}
+        <option value="{{ y }}" {{ 'selected' if y == sel_year else '' }}>{{ y }}</option>
+        {% endfor %}
+      </select>
+
+      <a href="{{ prev_url }}"
          class="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-gray-50 px-3 py-1.5 text-gray-700 hover:bg-gray-200 transition-colors">
-        &larr; {{ prev_name }}
+        &larr; Prev
       </a>
-      <a href="/"
-         class="inline-flex items-center rounded-md border border-gray-300 bg-gray-50 px-3 py-1.5 text-gray-700 hover:bg-gray-200 transition-colors">
-        Today
-      </a>
-      <a href="/{{ '%02d'|format(next_month) }}/{{ next_year }}"
+      <a href="{{ next_url }}"
          class="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-gray-50 px-3 py-1.5 text-gray-700 hover:bg-gray-200 transition-colors">
-        {{ next_name }} &rarr;
+        Next &rarr;
       </a>
 
       <span class="flex-1"></span>
 
-      <span class="font-medium {{ 'text-blue-700' if is_current_month else 'text-gray-600' }}">
-        {{ month_name }} {{ year }}
-      </span>
-      <span class="hidden sm:inline text-gray-400">/{{ '%02d'|format(month) }}/{{ year }}</span>
+      <span class="font-medium text-gray-600">{{ title }}</span>
     </nav>
   </header>
 
-  <main class="flex-1 overflow-x-auto p-4 sm:p-6">
-    <div class="cal-wrap {{ 'current' if is_current_month else '' }}">
+  <script>
+    function navGo() {
+      const m = String(document.getElementById('nav-month').value).padStart(2, '0');
+      const y = document.getElementById('nav-year').value;
+      const n = document.getElementById('nav-count').value;
+      const g = document.getElementById('nav-group').value;
+      window.location = `/${m}/${y}?months=${n}&group=${g}`;
+    }
+  </script>
+
+  <main class="flex-1 overflow-x-auto p-4 sm:p-6 space-y-6">
+    {% for mb in months %}
+    <div class="cal-wrap {{ 'current' if mb.is_current_month else '' }}">
       <div class="cal-grid">
 
         {# --- Label column, spanning both header rows: the month title --- #}
-        <div class="month-title {{ 'current' if is_current_month else '' }}"
-             style="grid-column: 1 / 2; grid-row: 1 / 3;">{{ month_name }} {{ year }}</div>
+        <div class="month-title {{ 'current' if mb.is_current_month else '' }}"
+             style="grid-column: 1 / 2; grid-row: 1 / 3;">{{ mb.month_name }} {{ mb.year }}</div>
 
         {# --- Row 1: CW (ISO week) bars, weekend shading, right padding --- #}
-        {% for c in cw_cells %}
+        {% for c in mb.cw_cells %}
         <div class="cell {{ c.kind }}"
              style="grid-column: {{ c.col_start }} / {{ c.col_end }}; grid-row: 1; background: {{ c.color }};"
              {% if c.title %}title="{{ c.title }}"{% endif %}>{{ c.text }}</div>
         {% endfor %}
 
         {# --- Row 2: day numbers (holidays magenta, weekends shaded) --- #}
-        {% for c in day_cells %}
+        {% for c in mb.day_cells %}
         <div class="cell {{ c.kind }}"
              style="grid-column: {{ c.col }}; grid-row: 2; background: {{ c.color }};"
              {% if c.title %}title="{{ c.title }}"{% endif %}>{{ c.text }}</div>
         {% endfor %}
 
         {# --- Rows 3..N: one row per object, with absences --- #}
-        {% for row in object_rows %}
+        {% for row in mb.object_rows %}
           {% set rownum = loop.index + 2 %}
           <div class="label" style="grid-column: 1 / 2; grid-row: {{ rownum }};">{{ row.name }}</div>
           {% for c in row.cells %}
@@ -151,13 +184,14 @@
         {% endfor %}
 
         {# --- White outline around the current day --- #}
-        {% if current_day %}
+        {% if mb.current_day %}
         <div class="curday-box"
-             style="grid-column: {{ current_day + 1 }} / {{ current_day + 2 }}; grid-row: 2 / {{ last_grid_row }};"></div>
+             style="grid-column: {{ mb.current_day + 1 }} / {{ mb.current_day + 2 }}; grid-row: 2 / {{ mb.last_grid_row }};"></div>
         {% endif %}
 
       </div>
     </div>
+    {% endfor %}
   </main>
 
 </body>
