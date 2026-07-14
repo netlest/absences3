@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ 'Edit' if absence else 'Add' }} absence — Absences Calendar</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="min-h-screen flex items-center justify-center bg-[#d8d0d8] font-['Fira_Code','Courier_New',monospace] p-4">
+
+  <div class="w-full max-w-md space-y-3">
+    <form method="post"
+          action="{{ '/absences/%d/edit'|format(absence.id) if absence else '/absences/new' }}"
+          class="bg-white/90 backdrop-blur border border-gray-300 shadow-sm rounded-lg p-6 space-y-4">
+      <h1 class="text-lg font-medium text-gray-800">{{ 'Edit' if absence else 'Add' }} absence</h1>
+
+      {% if error %}
+      <p class="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">{{ error }}</p>
+      {% endif %}
+
+      <label class="block text-sm text-gray-700">
+        Who / what
+        <select name="object_id" required
+                class="mt-1 w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-1.5 text-gray-800">
+          {% for o in objects %}
+          <option value="{{ o.id }}" {{ 'selected' if o.id == values.get('object_id') else '' }}>{{ o.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <label class="block text-sm text-gray-700">
+        Type of absence
+        <select name="type_id" required
+                class="mt-1 w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-1.5 text-gray-800">
+          {% for t in types %}
+          <option value="{{ t.id }}" style="background: {{ t.color }};"
+                  {{ 'selected' if t.id == values.get('type_id') else '' }}>{{ t.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <div class="flex gap-3">
+        <label class="block text-sm text-gray-700 flex-1">
+          From
+          <input name="abs_date_start" id="abs_date_start" type="date" required
+                 value="{{ values.get('abs_date_start', '') }}"
+                 class="mt-1 w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-1.5 text-gray-800">
+        </label>
+        <label class="block text-sm text-gray-700 flex-1">
+          To
+          <input name="abs_date_end" id="abs_date_end" type="date" required
+                 value="{{ values.get('abs_date_end', '') }}"
+                 class="mt-1 w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-1.5 text-gray-800">
+        </label>
+      </div>
+
+      <label class="block text-sm text-gray-700">
+        Description <span class="text-gray-400">(optional)</span>
+        <input name="description" maxlength="150"
+               value="{{ values.get('description') or '' }}"
+               class="mt-1 w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-1.5 text-gray-800">
+      </label>
+
+      <input type="hidden" name="months" value="{{ months }}">
+      <input type="hidden" name="group" value="{{ group }}">
+
+      <div class="flex gap-2">
+        <button type="submit"
+                class="flex-1 rounded-md border border-gray-300 bg-gray-50 px-3 py-1.5 text-gray-700 hover:bg-gray-200 transition-colors">
+          Save
+        </button>
+        <a href="javascript:history.back()"
+           class="flex-1 text-center rounded-md border border-gray-300 bg-gray-50 px-3 py-1.5 text-gray-700 hover:bg-gray-200 transition-colors">
+          Cancel
+        </a>
+      </div>
+    </form>
+
+    {% if absence %}
+    <form method="post" action="/absences/{{ absence.id }}/delete"
+          onsubmit="return confirm('Delete this absence?');"
+          class="bg-white/90 backdrop-blur border border-gray-300 shadow-sm rounded-lg p-3">
+      <input type="hidden" name="months" value="{{ months }}">
+      <input type="hidden" name="group" value="{{ group }}">
+      <input type="hidden" name="abs_date_start" value="{{ values.get('abs_date_start', '') }}">
+      <button type="submit"
+              class="w-full rounded-md border border-red-300 bg-red-50 px-3 py-1.5 text-red-700 hover:bg-red-100 transition-colors">
+        Delete absence
+      </button>
+    </form>
+    {% endif %}
+  </div>
+
+  <script>
+    // Keep "To" from going before "From".
+    const start = document.getElementById('abs_date_start');
+    const end = document.getElementById('abs_date_end');
+    function syncMin() {
+      end.min = start.value;
+      if (end.value && end.value < start.value) end.value = start.value;
+    }
+    start.addEventListener('change', syncMin);
+    if (!start.value) {
+      start.value = new Date().toISOString().slice(0, 10);
+      if (!end.value) end.value = start.value;
+    }
+    syncMin();
+  </script>
+
+</body>
+</html>

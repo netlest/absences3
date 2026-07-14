@@ -7,7 +7,17 @@ v_absences view.
 
 from datetime import date, datetime
 
-from sqlalchemy import Column, Date, DateTime, ForeignKey, String, Table, false, func
+from sqlalchemy import (
+    Column,
+    Date,
+    DateTime,
+    ForeignKey,
+    LargeBinary,
+    String,
+    Table,
+    false,
+    func,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 __all__ = [
@@ -19,6 +29,7 @@ __all__ = [
     "Absence",
     "Holiday",
     "VAbsence",
+    "UserSession",
     "user_groups",
     "create_all",
 ]
@@ -100,8 +111,7 @@ class AbsenceType(Base):
     __tablename__ = "absence_types"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str | None] = mapped_column(String(50))
-    description: Mapped[str | None] = mapped_column(String(50))
+    name: Mapped[str] = mapped_column(String(50))
     color: Mapped[str | None] = mapped_column(String(30))
 
     absences: Mapped[list["Absence"]] = relationship(back_populates="type")
@@ -147,6 +157,21 @@ class VAbsence(Base):
     at_color: Mapped[str | None] = mapped_column(String(30))
     at_name: Mapped[str | None] = mapped_column(String(50))
     duration: Mapped[int]
+
+
+class UserSession(Base):
+    """Server-side login session (`sessions` table).
+
+    `data` holds a JSON payload ({"user_id", "username", "admin"}); rows past
+    `expiry` are invalid and cleaned up opportunistically on login.
+    """
+
+    __tablename__ = "sessions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    session_id: Mapped[str | None] = mapped_column(String(255), unique=True)
+    data: Mapped[bytes | None] = mapped_column(LargeBinary)
+    expiry: Mapped[datetime | None] = mapped_column(DateTime)
 
 
 class Holiday(Base):

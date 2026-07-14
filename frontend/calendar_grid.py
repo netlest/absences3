@@ -88,15 +88,20 @@ def build_context(
     Parameters
     ----------
     year, month : int
-    objects     : ordered iterable of row labels (people / resources)
+    objects     : ordered iterable of row labels (people / resources).
+                  Each item is a str, or a dict {"name": str,
+                  "add_base": url-prefix or None} — when add_base is set,
+                  empty day cells of that row link to
+                  "<add_base>&date=YYYY-MM-DD" (add-absence shortcut).
     absences    : list of dicts, each:
                     {"object": <row label>  OR  "row": <0-based index>,
                      "day": int, "duration": int (default 1),
-                     "color": "#rrggbb", "caption": str}
+                     "color": "#rrggbb", "caption": str,
+                     "href": optional edit link}
     holidays    : {day:int -> description:str}
     today       : override "today" (defaults to date.today())
     """
-    objects = list(objects)
+    objects = [o if isinstance(o, dict) else {"name": o} for o in objects]
     absences = absences or []
     holidays = holidays or {}
     today = today or date.today()
@@ -156,7 +161,9 @@ def build_context(
 
     # ---- Rows 3.. : object rows with absences ---------------------------
     object_rows: list[dict] = []
-    for idx, name in enumerate(objects):
+    for idx, obj in enumerate(objects):
+        name = obj["name"]
+        add_base = obj.get("add_base")
         by_day: dict[int, dict] = {}
         for a in absences:
             if a.get("object") == name or a.get("row") == idx:
@@ -181,15 +188,18 @@ def build_context(
                 cells.append(
                     {"kind": "abs", "col_start": col, "col_end": end_day + 2,
                      "text": caption, "color": a.get("color", COL_BASE),
-                     "title": a.get("caption", "")}
+                     "title": a.get("caption", ""), "href": a.get("href")}
                 )
                 covered_until = end_day
             else:
                 color = COL_WEEKEND if is_weekend(d) else COL_BASE
-                cells.append(
-                    {"kind": "day", "col_start": col, "col_end": col + 1,
-                     "text": "", "color": color, "title": ""}
-                )
+                cell = {"kind": "day", "col_start": col, "col_end": col + 1,
+                        "text": "", "color": color, "title": ""}
+                if add_base:
+                    day_iso = date(year, month, d).isoformat()
+                    cell["href"] = f"{add_base}&date={day_iso}"
+                    cell["title"] = f"Add absence: {name.strip()}, {day_iso}"
+                cells.append(cell)
         object_rows.append({"name": name, "cells": cells})
 
     return {

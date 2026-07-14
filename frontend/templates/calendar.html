@@ -79,6 +79,10 @@
     }
     .month-title.current { color: var(--title); }
 
+    /* Editable absence blocks are links: same look, white outline on hover. */
+    a.cell { text-decoration: none; color: #000; cursor: pointer; }
+    a.cell:hover { outline: 2px solid var(--white); outline-offset: -2px; z-index: 2; }
+
     /* White outline around the current day, from the day-number row to the
        bottom of the object rows. Sits on top of the cells, ignores clicks. */
     .curday-box {
@@ -132,10 +136,22 @@
          class="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-gray-50 px-3 py-1.5 text-gray-700 hover:bg-gray-200 transition-colors">
         Next &rarr;
       </a>
+      <a href="{{ add_url }}"
+         class="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-gray-50 px-3 py-1.5 text-gray-700 hover:bg-gray-200 transition-colors">
+        + Add absence
+      </a>
 
       <span class="flex-1"></span>
 
       <span class="font-medium text-gray-600">{{ title }}</span>
+      <span class="text-gray-400 hidden sm:inline">|</span>
+      <span class="text-gray-700 hidden sm:inline">{{ username }}</span>
+      <form method="post" action="/logout" class="inline-flex">
+        <button type="submit"
+                class="inline-flex items-center rounded-md border border-gray-300 bg-gray-50 px-3 py-1.5 text-gray-700 hover:bg-gray-200 transition-colors">
+          Logout
+        </button>
+      </form>
     </nav>
   </header>
 
@@ -147,6 +163,163 @@
       const g = document.getElementById('nav-group').value;
       window.location = `/${m}/${y}?months=${n}&group=${g}`;
     }
+  </script>
+
+  <div class="sticky top-14 z-10 bg-white/90 backdrop-blur border-b border-gray-300 shadow-sm">
+    <div class="mx-auto max-w-screen-2xl flex flex-wrap items-center gap-2 px-4 sm:px-6 py-2 text-sm">
+      <span class="font-medium text-gray-800 mr-2">Legend</span>
+      {% for t in absence_types %}
+      <span class="inline-flex items-center border border-[#808080] px-2 py-1 text-[13px] text-black"
+            style="background: {{ t.color }};">{{ t.name }}</span>
+      {% endfor %}
+    </div>
+  </div>
+
+  {# --- Absence modal: "+ Add absence" / empty-cell clicks open it in add
+       mode; absence-block clicks open it in edit mode (prefilled via
+       /absences/{id}/data). The links keep working without JS. --- #}
+  <dialog id="add-modal"
+          class="m-auto w-full max-w-md rounded-lg border border-gray-300 shadow-lg p-0 backdrop:bg-black/40">
+    <form method="post" action="/absences/new" class="bg-white p-6 space-y-4 text-sm">
+      <h2 id="modal-title" class="text-lg font-medium text-gray-800">Add absence</h2>
+
+      <label class="block text-gray-700">
+        Who / what
+        <select name="object_id" required
+                class="mt-1 w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-1.5 text-gray-800">
+          {% for o in editable_objects %}
+          <option value="{{ o.id }}">{{ o.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <label class="block text-gray-700">
+        Type of absence
+        <select name="type_id" required
+                class="mt-1 w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-1.5 text-gray-800">
+          {% for t in absence_types %}
+          <option value="{{ t.id }}" style="background: {{ t.color }};">{{ t.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <div class="flex gap-3">
+        <label class="block text-gray-700 flex-1">
+          From
+          <input name="abs_date_start" type="date" required
+                 class="mt-1 w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-1.5 text-gray-800">
+        </label>
+        <label class="block text-gray-700 flex-1">
+          To
+          <input name="abs_date_end" type="date" required
+                 class="mt-1 w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-1.5 text-gray-800">
+        </label>
+      </div>
+
+      <label class="block text-gray-700">
+        Description <span class="text-gray-400">(optional)</span>
+        <input name="description" maxlength="150"
+               class="mt-1 w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-1.5 text-gray-800">
+      </label>
+
+      <input type="hidden" name="months" value="{{ sel_count }}">
+      <input type="hidden" name="group" value="{{ sel_group }}">
+
+      <div class="flex gap-2">
+        <button type="submit"
+                class="flex-1 rounded-md border border-gray-300 bg-gray-50 px-3 py-1.5 text-gray-700 hover:bg-gray-200 transition-colors">
+          Save
+        </button>
+        <button type="button" onclick="document.getElementById('add-modal').close()"
+                class="flex-1 rounded-md border border-gray-300 bg-gray-50 px-3 py-1.5 text-gray-700 hover:bg-gray-200 transition-colors">
+          Cancel
+        </button>
+      </div>
+    </form>
+
+    <form id="modal-delete" method="post" action=""
+          onsubmit="return confirm('Delete this absence?');"
+          class="hidden bg-white px-6 pb-6">
+      <input type="hidden" name="months" value="{{ sel_count }}">
+      <input type="hidden" name="group" value="{{ sel_group }}">
+      <input type="hidden" name="abs_date_start" value="">
+      <button type="submit"
+              class="w-full rounded-md border border-red-300 bg-red-50 px-3 py-1.5 text-red-700 hover:bg-red-100 transition-colors">
+        Delete absence
+      </button>
+    </form>
+  </dialog>
+
+  <script>
+    (function () {
+      const modal = document.getElementById('add-modal');
+      const title = document.getElementById('modal-title');
+      const form = modal.querySelector('form');
+      const del = document.getElementById('modal-delete');
+      const start = form.elements.abs_date_start;
+      const end = form.elements.abs_date_end;
+
+      function syncMin() {
+        end.min = start.value;
+        if (end.value && end.value < start.value) end.value = start.value;
+      }
+      start.addEventListener('change', syncMin);
+
+      function openAddModal(params) {
+        const today = new Date().toISOString().slice(0, 10);
+        const day = params.get('date') || today;
+        const objectId = params.get('object_id');
+        title.textContent = 'Add absence';
+        form.action = '/absences/new';
+        if (objectId) form.elements.object_id.value = objectId;
+        start.value = day;
+        end.value = day;
+        form.elements.description.value = '';
+        del.classList.add('hidden');
+        syncMin();
+        modal.showModal();
+      }
+
+      async function openEditModal(id, fallbackHref) {
+        let a;
+        try {
+          const r = await fetch(`/absences/${id}/data`);
+          if (!r.ok) throw new Error(r.status);
+          a = await r.json();
+        } catch {
+          window.location = fallbackHref;  // standalone edit page
+          return;
+        }
+        title.textContent = 'Edit absence';
+        form.action = `/absences/${id}/edit`;
+        form.elements.object_id.value = a.object_id;
+        form.elements.type_id.value = a.type_id;
+        start.value = a.abs_date_start;
+        end.value = a.abs_date_end;
+        form.elements.description.value = a.description || '';
+        del.action = `/absences/${id}/delete`;
+        del.elements.abs_date_start.value = a.abs_date_start;
+        del.classList.remove('hidden');
+        syncMin();
+        modal.showModal();
+      }
+
+      document.addEventListener('click', function (e) {
+        const a = e.target.closest('a[href^="/absences/"]');
+        if (!a) return;
+        const url = new URL(a.href, location.origin);
+        if (url.pathname === '/absences/new') {
+          e.preventDefault();
+          openAddModal(url.searchParams);
+          return;
+        }
+        const m = url.pathname.match(/^\/absences\/(\d+)\/edit$/);
+        if (m) {
+          e.preventDefault();
+          openEditModal(m[1], a.href);
+        }
+      });
+    })();
   </script>
 
   <main class="flex-1 overflow-x-auto p-4 sm:p-6 space-y-6">
@@ -177,9 +350,15 @@
           {% set rownum = loop.index + 2 %}
           <div class="label" style="grid-column: 1 / 2; grid-row: {{ rownum }};">{{ row.name }}</div>
           {% for c in row.cells %}
+          {% if c.href %}
+          <a class="cell {{ c.kind }}" href="{{ c.href }}"
+             style="grid-column: {{ c.col_start }} / {{ c.col_end }}; grid-row: {{ rownum }}; background: {{ c.color }};"
+             {% if c.title %}title="{{ c.title }}{{ ' (click to edit)' if c.kind == 'abs' else '' }}"{% endif %}>{{ c.text }}</a>
+          {% else %}
           <div class="cell {{ c.kind }}"
                style="grid-column: {{ c.col_start }} / {{ c.col_end }}; grid-row: {{ rownum }}; background: {{ c.color }};"
                {% if c.title %}title="{{ c.title }}"{% endif %}>{{ c.text }}</div>
+          {% endif %}
           {% endfor %}
         {% endfor %}
 

@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     )
 
     database_url: str
+    session_ttl_hours: int = 12
 
 
 settings = Settings()

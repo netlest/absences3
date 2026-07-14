@@ -24,8 +24,7 @@ CREATE TABLE objects (
 
 CREATE TABLE absence_types (
     id SERIAL PRIMARY KEY,
-    name VARCHAR(50),
-    description VARCHAR(50),
+    name VARCHAR(50) NOT NULL,
     color VARCHAR(30)
 );
 
@@ -50,4 +49,10 @@ CREATE TABLE holidays (
     event_date DATE NOT NULL,
 	description VARCHAR(150),
 	recurring BOOLEAN DEFAULT False
+);
+CREATE TABLE sessions (
+    id SERIAL PRIMARY KEY,
+    session_id VARCHAR(255) UNIQUE,
+    data BYTEA,
+    expiry TIMESTAMP
 );

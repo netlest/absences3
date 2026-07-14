@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Login — Absences Calendar</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="min-h-screen flex items-center justify-center bg-[#d8d0d8] font-['Fira_Code','Courier_New',monospace]">
+
+  <form method="post" action="/login"
+        class="w-full max-w-sm bg-white/90 backdrop-blur border border-gray-300 shadow-sm rounded-lg p-6 space-y-4">
+    <h1 class="text-lg font-medium text-gray-800">Absences Calendar</h1>
+
+    {% if error %}
+    <p class="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">{{ error }}</p>
+    {% endif %}
+
+    <label class="block text-sm text-gray-700">
+      Username
+      <input name="username" required autofocus autocomplete="username"
+             class="mt-1 w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-1.5 text-gray-800">
+    </label>
+
+    <label class="block text-sm text-gray-700">
+      Password
+      <input name="password" type="password" required autocomplete="current-password"
+             class="mt-1 w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-1.5 text-gray-800">
+    </label>
+
+    <button type="submit"
+            class="w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-1.5 text-gray-700 hover:bg-gray-200 transition-colors">
+      Log in
+    </button>
+  </form>
+
+</body>
+</html>
