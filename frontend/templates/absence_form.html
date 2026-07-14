@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <script src="/static/absence_form.js" defer></script>
 </head>
 <body class="min-h-screen flex items-center justify-center bg-[#d8d0d8] font-['Fira_Code','Courier_New',monospace] p-4">
 
@@ -36,7 +37,7 @@
         <select name="type_id" required
                 class="mt-1 w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-1.5 text-gray-800">
           {% for t in types %}
-          <option value="{{ t.id }}" style="background: {{ t.color }};"
+          <option value="{{ t.id }}"
                   {{ 'selected' if t.id == values.get('type_id') else '' }}>{{ t.name }}</option>
           {% endfor %}
         </select>
@@ -93,22 +94,6 @@
     </form>
     {% endif %}
   </div>
-
-  <script>
-    // Keep "To" from going before "From".
-    const start = document.getElementById('abs_date_start');
-    const end = document.getElementById('abs_date_end');
-    function syncMin() {
-      end.min = start.value;
-      if (end.value && end.value < start.value) end.value = start.value;
-    }
-    start.addEventListener('change', syncMin);
-    if (!start.value) {
-      start.value = new Date().toISOString().slice(0, 10);
-      if (!end.value) end.value = start.value;
-    }
-    syncMin();
-  </script>
 
 </body>
 </html>

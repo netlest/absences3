@@ -409,7 +409,7 @@ def test_add_form_page_prefills_from_query(client):
 def test_calendar_contains_add_modal(client):
     r = client.get("/")
     assert 'id="add-modal"' in r.text
-    assert "showModal" in r.text
+    assert '/static/calendar.js' in r.text
     for o in ("Adam  Zaleski", "Kinga Zaleska"):
         assert o in r.text  # modal object select options
 
@@ -436,8 +436,11 @@ def test_absence_data_unknown_id_404(client):
 def test_modal_supports_edit_mode(client):
     r = client.get("/")
     assert 'id="modal-delete"' in r.text
-    assert "openEditModal" in r.text
-    assert "/data" in r.text
+    js = client.get("/static/calendar.js")
+    assert js.status_code == 200
+    assert "openEditModal" in js.text
+    assert "openAddModal" in js.text
+    assert "navGo" in js.text
 
 
 def test_nav_has_add_absence_button(client):

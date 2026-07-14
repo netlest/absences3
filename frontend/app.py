@@ -23,6 +23,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 import api_client
@@ -33,6 +34,7 @@ SESSION_COOKIE = "session"
 COOKIE_MAX_AGE = 12 * 3600  # keep in sync with the backend's session TTL
 
 app = FastAPI(title="Absences calendar (CSS grid)")
+app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 

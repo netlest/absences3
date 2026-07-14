@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <script src="/static/calendar.js" defer></script>
   <style>
     :root {
       --base:    #c0b0c0;
@@ -155,16 +156,6 @@
     </nav>
   </header>
 
-  <script>
-    function navGo() {
-      const m = String(document.getElementById('nav-month').value).padStart(2, '0');
-      const y = document.getElementById('nav-year').value;
-      const n = document.getElementById('nav-count').value;
-      const g = document.getElementById('nav-group').value;
-      window.location = `/${m}/${y}?months=${n}&group=${g}`;
-    }
-  </script>
-
   <div class="sticky top-14 z-10 bg-white/90 backdrop-blur border-b border-gray-300 shadow-sm">
     <div class="mx-auto max-w-screen-2xl flex flex-wrap items-center gap-2 px-4 sm:px-6 py-2 text-sm">
       <span class="font-medium text-gray-800 mr-2">Legend</span>
@@ -198,7 +189,7 @@
         <select name="type_id" required
                 class="mt-1 w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-1.5 text-gray-800">
           {% for t in absence_types %}
-          <option value="{{ t.id }}" style="background: {{ t.color }};">{{ t.name }}</option>
+          <option value="{{ t.id }}">{{ t.name }}</option>
           {% endfor %}
         </select>
       </label>
@@ -249,78 +240,6 @@
       </button>
     </form>
   </dialog>
-
-  <script>
-    (function () {
-      const modal = document.getElementById('add-modal');
-      const title = document.getElementById('modal-title');
-      const form = modal.querySelector('form');
-      const del = document.getElementById('modal-delete');
-      const start = form.elements.abs_date_start;
-      const end = form.elements.abs_date_end;
-
-      function syncMin() {
-        end.min = start.value;
-        if (end.value && end.value < start.value) end.value = start.value;
-      }
-      start.addEventListener('change', syncMin);
-
-      function openAddModal(params) {
-        const today = new Date().toISOString().slice(0, 10);
-        const day = params.get('date') || today;
-        const objectId = params.get('object_id');
-        title.textContent = 'Add absence';
-        form.action = '/absences/new';
-        if (objectId) form.elements.object_id.value = objectId;
-        start.value = day;
-        end.value = day;
-        form.elements.description.value = '';
-        del.classList.add('hidden');
-        syncMin();
-        modal.showModal();
-      }
-
-      async function openEditModal(id, fallbackHref) {
-        let a;
-        try {
-          const r = await fetch(`/absences/${id}/data`);
-          if (!r.ok) throw new Error(r.status);
-          a = await r.json();
-        } catch {
-          window.location = fallbackHref;  // standalone edit page
-          return;
-        }
-        title.textContent = 'Edit absence';
-        form.action = `/absences/${id}/edit`;
-        form.elements.object_id.value = a.object_id;
-        form.elements.type_id.value = a.type_id;
-        start.value = a.abs_date_start;
-        end.value = a.abs_date_end;
-        form.elements.description.value = a.description || '';
-        del.action = `/absences/${id}/delete`;
-        del.elements.abs_date_start.value = a.abs_date_start;
-        del.classList.remove('hidden');
-        syncMin();
-        modal.showModal();
-      }
-
-      document.addEventListener('click', function (e) {
-        const a = e.target.closest('a[href^="/absences/"]');
-        if (!a) return;
-        const url = new URL(a.href, location.origin);
-        if (url.pathname === '/absences/new') {
-          e.preventDefault();
-          openAddModal(url.searchParams);
-          return;
-        }
-        const m = url.pathname.match(/^\/absences\/(\d+)\/edit$/);
-        if (m) {
-          e.preventDefault();
-          openEditModal(m[1], a.href);
-        }
-      });
-    })();
-  </script>
 
   <main class="flex-1 overflow-x-auto p-4 sm:p-6 space-y-6">
     {% for mb in months %}
