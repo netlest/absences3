@@ -1,0 +1,28 @@
+{# Tabs + active panel. This whole fragment is the htmx swap target
+   (#manage-area): tab clicks, form submits and deletes all re-render it. #}
+
+<div class="flex flex-wrap gap-1 border-b border-gray-300 mb-4">
+  {% for t in tabs %}
+  <a href="/manage?tab={{ t.key }}"
+     hx-get="/manage/{{ t.key }}" hx-target="#manage-area"
+     hx-push-url="/manage?tab={{ t.key }}"
+     class="px-4 py-2 text-sm rounded-t-md border border-b-0 transition-colors
+            {{ 'bg-white border-gray-300 font-medium text-gray-900'
+               if t.key == active else
+               'bg-gray-100 border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-200' }}">
+    {{ t.label }}
+  </a>
+  {% endfor %}
+</div>
+
+{% if form_error %}
+<p class="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+  {{ form_error }}
+</p>
+{% endif %}
+
+{% if active == "members" %}
+  {% include "partials/manage_members.html" %}
+{% else %}
+  {% include "partials/manage_panel.html" %}
+{% endif %}

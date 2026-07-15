@@ -32,6 +32,24 @@ class ApiError(Exception):
     """
 
 
+class ValidationApiError(ApiError):
+    """Raised on 422 — Pydantic field errors, as a {field: message} dict."""
+
+    def __init__(self, errors: dict[str, str]):
+        super().__init__("Invalid input")
+        self.errors = errors
+
+
+def _field_errors(detail) -> dict[str, str]:
+    """Flatten FastAPI's 422 detail list into {field_name: message}."""
+    errors: dict[str, str] = {}
+    if isinstance(detail, list):
+        for e in detail:
+            loc = [str(p) for p in e.get("loc", []) if p not in ("body", "query")]
+            errors[loc[0] if loc else "__all__"] = e.get("msg", "Invalid value")
+    return errors
+
+
 def _request(method: str, path: str, token: str | None = None, **kwargs):
     headers = {"Authorization": f"Bearer {token}"} if token else {}
     try:
@@ -46,9 +64,11 @@ def _request(method: str, path: str, token: str | None = None, **kwargs):
         raise BackendUnavailable(f"{method} {path}: {exc}") from exc
     if r.status_code == 401:
         raise Unauthorized(r.json().get("detail", "unauthorized"))
+    if r.status_code == 422:
+        raise ValidationApiError(_field_errors(r.json().get("detail")))
     if 400 <= r.status_code < 500:
         detail = r.json().get("detail", f"request failed ({r.status_code})")
-        if not isinstance(detail, str):  # pydantic validation errors are lists
+        if not isinstance(detail, str):
             detail = "Invalid input"
         raise ApiError(detail)
     try:
@@ -148,3 +168,71 @@ def update_absence(token: str, absence_id: int, payload: dict) -> dict:
 
 def delete_absence(token: str, absence_id: int) -> None:
     _request("DELETE", f"/absences/{absence_id}", token)
+
+
+# --- generic management resources (see manage.py) -----------------------------
+
+
+class Resource:
+    """REST client for one backend collection: list/create/update/delete.
+
+    New managed entities get a Resource here plus an Entity spec in
+    manage_entities.py — no bespoke request code.
+    """
+
+    def __init__(self, path: str):
+        self.path = path
+
+    def list(self, token: str, **params) -> list[dict]:
+        return _get(self.path, token, **params)
+
+    def create(self, token: str, payload: dict) -> dict:
+        return _request("POST", self.path, token, json=payload)
+
+    def update(self, token: str, item_id: int, payload: dict) -> dict:
+        return _request("PUT", f"{self.path}/{item_id}", token, json=payload)
+
+    def delete(self, token: str, item_id: int) -> None:
+        _request("DELETE", f"{self.path}/{item_id}", token)
+
+
+users = Resource("/users")
+groups_admin = Resource("/groups")
+objects = Resource("/objects")
+absence_types = Resource("/absence_types")
+holidays = Resource("/holidays")
+absences = Resource("/absences")
+
+
+def get_manage_absences(
+    token: str,
+    year: int | None = None,
+    object_id: int | None = None,
+    page: int | None = None,
+) -> dict:
+    """Raw (un-split) absences the user may manage, for the manage table.
+
+    Paginated: {"rows", "total", "page", "per_page", "pages", "years"}.
+    """
+    return _get(
+        "/manage/absences", token, year=year, object_id=object_id, page=page
+    )
+
+
+def get_holidays_all(token: str) -> list[dict]:
+    """Raw holiday rows without recurring expansion (admin only)."""
+    return _get("/holidays/all", token)
+
+
+def get_group_members(token: str, group_id: int) -> list[dict]:
+    return _get(f"/groups/{group_id}/members", token)
+
+
+def add_group_member(token: str, group_id: int, user_id: int) -> None:
+    _request(
+        "POST", f"/groups/{group_id}/members", token, json={"user_id": user_id}
+    )
+
+
+def remove_group_member(token: str, group_id: int, user_id: int) -> None:
+    _request("DELETE", f"/groups/{group_id}/members/{user_id}", token)

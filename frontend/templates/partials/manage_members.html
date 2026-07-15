@@ -1,0 +1,77 @@
+{# Group membership panel (admin only): pick a group, see its members,
+   add/remove users. Controls who sees which calendars. #}
+
+<div class="flex items-center justify-between mb-3">
+  <h2 class="text-lg font-medium text-gray-900">Group members</h2>
+</div>
+
+<form method="get" action="/manage/members" class="mb-4 flex items-center gap-2 text-sm">
+  <label class="text-gray-700" for="members-group">Group</label>
+  <select id="members-group" name="group_id"
+          hx-get="/manage/members" hx-target="#manage-area"
+          class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-gray-800 shadow-sm">
+    {% for g in m_groups %}
+    <option value="{{ g.id }}" {{ "selected" if g.id == m_selected }}>{{ g.name }}</option>
+    {% endfor %}
+  </select>
+  <noscript>
+    <button type="submit"
+            class="rounded-md border border-gray-300 bg-gray-50 px-3 py-1.5 text-gray-700 hover:bg-gray-200">
+      Show
+    </button>
+  </noscript>
+</form>
+
+{% if m_selected is not none %}
+<div class="grid gap-5 sm:grid-cols-2 max-w-3xl">
+
+  <div class="rounded-lg border border-gray-300 bg-white shadow-sm">
+    <h3 class="px-4 py-2 border-b border-gray-200 text-sm font-medium text-gray-600 bg-gray-50 rounded-t-lg">
+      Members
+    </h3>
+    <ul class="divide-y divide-gray-200 text-sm">
+      {% for m in m_members %}
+      <li class="flex items-center justify-between px-4 py-2">
+        <span>{{ m.username }}</span>
+        <form method="post" action="/manage/members/{{ m.id }}/remove"
+              hx-post="/manage/members/{{ m.id }}/remove" hx-target="#manage-area"
+              hx-confirm="Remove {{ m.username }} from this group?">
+          <input type="hidden" name="group_id" value="{{ m_selected }}">
+          <button type="submit" class="text-red-600 hover:text-red-800 underline decoration-red-200 hover:decoration-red-500">
+            Remove
+          </button>
+        </form>
+      </li>
+      {% else %}
+      <li class="px-4 py-6 text-center text-gray-400">No members yet.</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <div class="rounded-lg border border-gray-300 bg-white shadow-sm p-4 h-fit">
+    <h3 class="text-sm font-medium text-gray-600 mb-2">Add a member</h3>
+    {% if m_candidates %}
+    <form method="post" action="/manage/members/add"
+          hx-post="/manage/members/add" hx-target="#manage-area"
+          class="flex items-center gap-2 text-sm">
+      <input type="hidden" name="group_id" value="{{ m_selected }}">
+      <select name="user_id" required
+              class="flex-1 rounded-md border border-gray-300 bg-gray-50 px-3 py-1.5 text-gray-800">
+        {% for u in m_candidates %}
+        <option value="{{ u.id }}">{{ u.username }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit"
+              class="rounded-md bg-gray-800 px-4 py-1.5 text-white hover:bg-gray-700 transition-colors">
+        Add
+      </button>
+    </form>
+    {% else %}
+    <p class="text-sm text-gray-400">Every user is already a member.</p>
+    {% endif %}
+  </div>
+
+</div>
+{% else %}
+<p class="text-gray-400 text-sm">Create a group first.</p>
+{% endif %}

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Manage — Absences Calendar</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <script src="https://cdn.jsdelivr.net/npm/htmx.org@2/dist/htmx.min.js" defer></script>
+  <script src="/static/manage.js" defer></script>
+</head>
+<body class="min-h-screen bg-gray-100 font-sans text-gray-800">
+
+  <header class="sticky top-0 z-20 bg-white/90 backdrop-blur border-b border-gray-300 shadow-sm">
+    <nav class="mx-auto max-w-screen-xl flex items-center gap-3 px-4 sm:px-6 h-14 text-sm">
+      <a href="/" class="text-base font-medium text-gray-800 hover:text-gray-600">Absences Calendar</a>
+      <span class="text-gray-400">/</span>
+      <span class="font-medium text-gray-600">Manage</span>
+
+      <span class="flex-1"></span>
+
+      <a href="/"
+         class="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-gray-50 px-3 py-1.5 text-gray-700 hover:bg-gray-200 transition-colors">
+        &larr; Back to calendar
+      </a>
+      <span class="text-gray-600">{{ username }}</span>
+      <form method="post" action="/logout">
+        <button type="submit"
+                class="inline-flex items-center rounded-md border border-gray-300 bg-gray-50 px-3 py-1.5 text-gray-700 hover:bg-gray-200 transition-colors">
+          Logout
+        </button>
+      </form>
+    </nav>
+  </header>
+
+  <main class="mx-auto max-w-screen-xl px-4 sm:px-6 py-6">
+    <div id="manage-area">
+      {% include "partials/manage_area.html" %}
+    </div>
+  </main>
+
+</body>
+</html>

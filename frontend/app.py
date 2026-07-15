@@ -483,6 +483,15 @@ def absence_delete(
     return RedirectResponse(back, status_code=303)
 
 
+# --- manage pages ---------------------------------------------------------------
+# Registered before the /{month}/{year} route below, which would otherwise
+# swallow /manage/* paths.
+
+import manage  # noqa: E402  (needs `templates` above)
+
+app.include_router(manage.router)
+
+
 # --- calendar routes ----------------------------------------------------------
 
 

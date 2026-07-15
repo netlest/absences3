@@ -1,0 +1,222 @@
+{# Generic entity panel: a table plus an add/edit form, both rendered from
+   the Entity spec (manage_entities.py). Field errors come from the
+   backend's Pydantic validation (422) keyed by field name. #}
+
+{% set visible_columns = (entity.columns | list) if me.admin else (entity.columns | rejectattr("admin_only") | list) %}
+{# List state (year filter, page) rides along on every panel URL. #}
+{% set qs = meta.qs if meta else "" %}
+
+{% macro input_cls(name) -%}
+mt-1 w-full rounded-md border px-3 py-1.5 text-gray-800 bg-gray-50
+{{- " border-red-400 bg-red-50" if errors.get(name) else " border-gray-300" }}
+{%- endmacro %}
+
+{% macro field_error(name) -%}
+  {% if errors.get(name) %}
+  <p class="mt-1 text-xs text-red-600">{{ errors[name] }}</p>
+  {% endif %}
+{%- endmacro %}
+
+{% macro render_field(f) %}
+  {% set val = values.get(f.name) %}
+  {% if f.widget == "checkbox" %}
+  <label class="flex items-center gap-2 text-gray-700 pt-2">
+    <input type="checkbox" name="{{ f.name }}" class="h-4 w-4 rounded border-gray-300"
+           {{ "checked" if val }}>
+    {{ f.label }}
+  </label>
+  {% elif f.widget == "select" %}
+  <label class="block text-gray-700">
+    {{ f.label }}
+    <select name="{{ f.name }}" {{ "required" if f.required }} class="{{ input_cls(f.name) }}">
+      {% for opt in options.get(f.options, []) %}
+      <option value="{{ opt.value }}"
+              {{ "selected" if val is not none and (opt.value | string) == (val | string) }}>
+        {{ opt.label }}
+      </option>
+      {% endfor %}
+    </select>
+    {{ field_error(f.name) }}
+  </label>
+  {% elif f.widget == "color" %}
+  <label class="block text-gray-700">
+    {{ f.label }}
+    <input type="color" name="{{ f.name }}" value="{{ val or '#7ec8e3' }}"
+           class="mt-1 h-9 w-16 rounded-md border border-gray-300 bg-gray-50 p-1">
+    {{ field_error(f.name) }}
+  </label>
+  {% else %}
+  <label class="block text-gray-700">
+    {{ f.label }}{% if not f.required and not f.optional_on_edit %} <span class="text-gray-400">(optional)</span>{% endif %}
+    <input type="{{ f.widget }}" name="{{ f.name }}"
+           value="{{ '' if f.widget == 'password' else (val if val is not none else '') }}"
+           {{ "required" if f.required and not (form_mode == "edit" and f.optional_on_edit) }}
+           {% if f.maxlength %}maxlength="{{ f.maxlength }}"{% endif %}
+           {% if f.pattern %}pattern="{{ f.pattern }}"{% endif %}
+           {% if f.placeholder %}placeholder="{{ f.placeholder }}"{% endif %}
+           class="{{ input_cls(f.name) }}">
+    {% if f.help %}<p class="mt-1 text-xs text-gray-500">{{ f.help }}</p>{% endif %}
+    {{ field_error(f.name) }}
+  </label>
+  {% endif %}
+{% endmacro %}
+
+<div class="flex items-center justify-between mb-3">
+  <h2 class="text-lg font-medium text-gray-900">{{ entity.title }}</h2>
+  <a href="/manage/{{ entity.key }}/new{{ qs }}"
+     hx-get="/manage/{{ entity.key }}/new{{ qs }}" hx-target="#manage-area"
+     class="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 shadow-sm transition-colors">
+    + Add {{ entity.singular }}
+  </a>
+</div>
+
+{% if meta %}
+{# Changing either select reloads the panel with BOTH filters applied
+   (hx-include picks up the sibling select); page resets to 1. #}
+<form method="get" action="/manage/{{ entity.key }}"
+      class="mb-3 flex flex-wrap items-center gap-2 text-sm">
+  <label for="list-year" class="text-gray-700">Year</label>
+  <select id="list-year" name="year"
+          hx-get="/manage/{{ entity.key }}" hx-target="#manage-area"
+          hx-include="closest form"
+          class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-gray-800 shadow-sm">
+    <option value="">All years</option>
+    {% for y in meta.years %}
+    <option value="{{ y }}" {{ "selected" if y == meta.year }}>{{ y }}</option>
+    {% endfor %}
+  </select>
+  <label for="list-object" class="text-gray-700 ml-2">Who / what</label>
+  <select id="list-object" name="object_id"
+          hx-get="/manage/{{ entity.key }}" hx-target="#manage-area"
+          hx-include="closest form"
+          class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-gray-800 shadow-sm">
+    <option value="">All objects</option>
+    {% for opt in options.get("objects", []) %}
+    <option value="{{ opt.value }}" {{ "selected" if opt.value == meta.object_id }}>{{ opt.label }}</option>
+    {% endfor %}
+  </select>
+  <noscript>
+    <button type="submit"
+            class="rounded-md border border-gray-300 bg-gray-50 px-3 py-1.5 text-gray-700 hover:bg-gray-200">
+      Show
+    </button>
+  </noscript>
+  <span class="ml-auto text-gray-500">
+    {{ meta.total }} {{ entity.singular if meta.total == 1 else entity.title | lower }}
+  </span>
+</form>
+{% endif %}
+
+{% if form_mode %}
+{# Modal add/edit form. Rendered with `open` so it is visible without JS;
+   static/manage.js re-opens it via showModal() for the backdrop + focus
+   trap. Cancel re-renders the panel without the form. #}
+<dialog id="manage-modal" open
+        class="m-auto w-full max-w-md rounded-lg border border-gray-300 shadow-lg p-0 backdrop:bg-black/40">
+  <div class="bg-white p-6">
+    <h3 class="text-base font-medium text-gray-900 mb-3">
+      {{ "Edit" if form_mode == "edit" else "Add" }} {{ entity.singular }}
+    </h3>
+    {% set post_url = "/manage/" ~ entity.key ~ ("/" ~ item_id ~ "/update" if form_mode == "edit" else "/create") ~ qs %}
+    <form method="post" action="{{ post_url }}"
+          hx-post="{{ post_url }}" hx-target="#manage-area"
+          class="space-y-4 text-sm">
+      {% for f in entity.fields %}
+        {% if not f.admin_only or me.admin %}{{ render_field(f) }}{% endif %}
+      {% endfor %}
+      <div class="flex gap-2 pt-1">
+        <button type="submit"
+                class="flex-1 rounded-md bg-gray-800 px-4 py-1.5 text-white hover:bg-gray-700 transition-colors">
+          Save
+        </button>
+        <a href="/manage/{{ entity.key }}{{ qs }}"
+           hx-get="/manage/{{ entity.key }}{{ qs }}" hx-target="#manage-area"
+           class="flex-1 text-center rounded-md border border-gray-300 bg-gray-50 px-4 py-1.5 text-gray-700 hover:bg-gray-200 transition-colors">
+          Cancel
+        </a>
+      </div>
+    </form>
+  </div>
+</dialog>
+{% endif %}
+
+<div class="overflow-x-auto rounded-lg border border-gray-300 bg-white shadow-sm">
+  <table class="min-w-full text-sm">
+    <thead class="bg-gray-50 text-left text-gray-600">
+      <tr>
+        {% for col in visible_columns %}
+        <th class="px-4 py-2 font-medium">{{ col.label }}</th>
+        {% endfor %}
+        <th class="px-4 py-2 w-32"></th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-200">
+      {% for row in rows %}
+      <tr class="hover:bg-gray-50">
+        {% for col in visible_columns %}
+        <td class="px-4 py-2">
+          {% set v = row.get(col.key) %}
+          {% if col.kind == "bool" %}
+            {{ "✓" if v else "—" }}
+          {% elif col.kind == "color" %}
+            {% if v %}
+            <span class="inline-flex items-center gap-2">
+              <span class="inline-block h-4 w-4 rounded border border-gray-300"
+                    style="background: {{ v }};"></span>
+              <span class="text-gray-500">{{ v }}</span>
+            </span>
+            {% else %}—{% endif %}
+          {% else %}
+            {{ v if v is not none else "" }}
+          {% endif %}
+        </td>
+        {% endfor %}
+        <td class="px-4 py-2 text-right whitespace-nowrap">
+          <a href="/manage/{{ entity.key }}/{{ row.id }}/edit{{ qs }}"
+             hx-get="/manage/{{ entity.key }}/{{ row.id }}/edit{{ qs }}" hx-target="#manage-area"
+             class="text-gray-600 hover:text-gray-900 underline decoration-gray-300 hover:decoration-gray-600 mr-3">
+            Edit
+          </a>
+          {% if not row.get("_protected") %}
+          <form method="post" action="/manage/{{ entity.key }}/{{ row.id }}/delete{{ qs }}"
+                hx-post="/manage/{{ entity.key }}/{{ row.id }}/delete{{ qs }}"
+                hx-target="#manage-area" hx-confirm="{{ entity.delete_confirm }}"
+                class="inline">
+            <button type="submit" class="text-red-600 hover:text-red-800 underline decoration-red-200 hover:decoration-red-500">
+              Delete
+            </button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="{{ visible_columns | length + 1 }}" class="px-4 py-6 text-center text-gray-400">
+          Nothing here yet — add the first {{ entity.singular }}.
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if meta and meta.pages > 1 %}
+{% set fq = (meta.fq ~ "&") if meta.fq else "" %}
+<div class="mt-3 flex items-center gap-4 text-sm text-gray-600">
+  {% if meta.page > 1 %}
+  <a href="/manage/{{ entity.key }}?{{ fq }}page={{ meta.page - 1 }}"
+     hx-get="/manage/{{ entity.key }}?{{ fq }}page={{ meta.page - 1 }}" hx-target="#manage-area"
+     class="rounded-md border border-gray-300 bg-white px-3 py-1.5 hover:bg-gray-100 shadow-sm transition-colors">
+    &larr; Prev
+  </a>
+  {% endif %}
+  <span>Page {{ meta.page }} of {{ meta.pages }}</span>
+  {% if meta.page < meta.pages %}
+  <a href="/manage/{{ entity.key }}?{{ fq }}page={{ meta.page + 1 }}"
+     hx-get="/manage/{{ entity.key }}?{{ fq }}page={{ meta.page + 1 }}" hx-target="#manage-area"
+     class="rounded-md border border-gray-300 bg-white px-3 py-1.5 hover:bg-gray-100 shadow-sm transition-colors">
+    Next &rarr;
+  </a>
+  {% endif %}
+</div>
+{% endif %}
