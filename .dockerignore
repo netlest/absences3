@@ -1,0 +1,15 @@
+.git
+.github
+.claude
+.vscode
+.idea
+.venv
+**/__pycache__
+**/.pytest_cache
+*.py[cod]
+.env
+**/.env
+frontend/tests
+sql_ddl
+*.md
+docker-compose*.yml
