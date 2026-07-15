@@ -96,7 +96,7 @@
 </head>
 <body class="min-h-screen flex flex-col bg-[#d8d0d8] font-['Fira_Code','Courier_New',monospace]">
 
-  <header class="sticky top-0 z-10 bg-white/90 backdrop-blur border-b border-gray-300 shadow-sm">
+  <header class="sticky top-0 z-20 bg-white/90 backdrop-blur border-b border-gray-300 shadow-sm">
     <nav class="mx-auto max-w-screen-2xl flex items-center gap-3 px-4 sm:px-6 h-14 text-sm">
       <span class="text-base font-medium text-gray-800 mr-4">Absences Calendar</span>
 
@@ -141,18 +141,24 @@
          class="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-gray-50 px-3 py-1.5 text-gray-700 hover:bg-gray-200 transition-colors">
         + Add absence
       </a>
-
       <span class="flex-1"></span>
 
       <span class="font-medium text-gray-600">{{ title }}</span>
-      <span class="text-gray-400 hidden sm:inline">|</span>
-      <span class="text-gray-700 hidden sm:inline">{{ username }}</span>
-      <form method="post" action="/logout" class="inline-flex">
-        <button type="submit"
-                class="inline-flex items-center rounded-md border border-gray-300 bg-gray-50 px-3 py-1.5 text-gray-700 hover:bg-gray-200 transition-colors">
-          Logout
+      <div class="relative" id="user-menu">
+        <button type="button" id="user-menu-btn"
+                class="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-gray-50 px-3 py-1.5 text-gray-700 hover:bg-gray-200 transition-colors">
+          {{ username }} &#9662;
         </button>
-      </form>
+        <div id="user-menu-list"
+             class="hidden absolute right-0 top-full mt-1 w-48 rounded-md border border-gray-300 bg-white shadow-lg py-1 z-20">
+          <a href="/password" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Change password</a>
+          <form method="post" action="/logout">
+            <button type="submit" class="block w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100">
+              Logout
+            </button>
+          </form>
+        </div>
+      </div>
     </nav>
   </header>
 
@@ -238,6 +244,47 @@
               class="w-full rounded-md border border-red-300 bg-red-50 px-3 py-1.5 text-red-700 hover:bg-red-100 transition-colors">
         Delete absence
       </button>
+    </form>
+  </dialog>
+
+  {# --- Change-password modal: opened from the user menu; the /password
+       page keeps working as the no-JS fallback. Submits via fetch. --- #}
+  <dialog id="pw-modal"
+          class="m-auto w-full max-w-sm rounded-lg border border-gray-300 shadow-lg p-0 backdrop:bg-black/40">
+    <form method="post" action="/password" class="bg-white p-6 space-y-4 text-sm">
+      <h2 class="text-lg font-medium text-gray-800">Change password</h2>
+
+      <p id="pw-error" class="hidden text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2"></p>
+      <p id="pw-done" class="hidden text-green-700 bg-green-50 border border-green-200 rounded-md px-3 py-2">Password changed.</p>
+
+      <label class="block text-gray-700">
+        Current password
+        <input name="current_password" type="password" required autocomplete="current-password"
+               class="mt-1 w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-1.5 text-gray-800">
+      </label>
+
+      <label class="block text-gray-700">
+        New password
+        <input name="new_password" type="password" required minlength="6" autocomplete="new-password"
+               class="mt-1 w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-1.5 text-gray-800">
+      </label>
+
+      <label class="block text-gray-700">
+        Repeat new password
+        <input name="confirm_password" type="password" required minlength="6" autocomplete="new-password"
+               class="mt-1 w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-1.5 text-gray-800">
+      </label>
+
+      <div class="flex gap-2">
+        <button type="submit"
+                class="flex-1 rounded-md border border-gray-300 bg-gray-50 px-3 py-1.5 text-gray-700 hover:bg-gray-200 transition-colors">
+          Change password
+        </button>
+        <button type="button" onclick="document.getElementById('pw-modal').close()"
+                class="flex-1 rounded-md border border-gray-300 bg-gray-50 px-3 py-1.5 text-gray-700 hover:bg-gray-200 transition-colors">
+          Cancel
+        </button>
+      </div>
     </form>
   </dialog>
 

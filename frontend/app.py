@@ -220,6 +220,69 @@ def logout(request: Request):
     return _login_redirect()
 
 
+@app.get("/password", response_class=HTMLResponse)
+def password_page(request: Request):
+    if not request.cookies.get(SESSION_COOKIE):
+        return _login_redirect()
+    return templates.TemplateResponse(
+        request, "password.html", {"error": None, "done": False}
+    )
+
+
+@app.post("/password")
+def password_submit(
+    request: Request,
+    current_password: str = Form(...),
+    new_password: str = Form(...),
+    confirm_password: str = Form(...),
+):
+    token = request.cookies.get(SESSION_COOKIE)
+    if not token:
+        return _login_redirect()
+
+    def _form(error: str | None, done: bool = False, status_code: int = 200):
+        return templates.TemplateResponse(
+            request, "password.html", {"error": error, "done": done},
+            status_code=status_code,
+        )
+
+    if new_password != confirm_password:
+        return _form("New passwords do not match", status_code=400)
+    try:
+        api_client.change_password(token, current_password, new_password)
+    except api_client.Unauthorized:
+        return _login_redirect()
+    except api_client.ApiError as exc:
+        return _form(str(exc), status_code=400)
+    except api_client.BackendUnavailable as exc:
+        raise HTTPException(status_code=503, detail=f"Backend unavailable: {exc}")
+    return _form(None, done=True)
+
+
+@app.post("/password/change")
+def password_change_api(
+    request: Request,
+    current_password: str = Form(...),
+    new_password: str = Form(...),
+    confirm_password: str = Form(...),
+):
+    """JSON variant used by the password modal (fetch submit)."""
+    token = request.cookies.get(SESSION_COOKIE)
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    if new_password != confirm_password:
+        raise HTTPException(status_code=400, detail="New passwords do not match")
+    try:
+        api_client.change_password(token, current_password, new_password)
+    except api_client.Unauthorized:
+        raise HTTPException(status_code=401, detail="Session expired")
+    except api_client.ApiError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except api_client.BackendUnavailable as exc:
+        raise HTTPException(status_code=503, detail=f"Backend unavailable: {exc}")
+    return {"status": "ok"}
+
+
 # --- absence add / edit / delete ----------------------------------------------
 
 

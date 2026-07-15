@@ -135,6 +135,15 @@ def fake_backend(monkeypatch):
         _check(token)
         calls["deleted"].append(absence_id)
 
+    def fake_change_password(token, current_password, new_password):
+        _check(token)
+        if current_password != "secret":
+            raise api_client.ApiError("Current password is incorrect")
+        calls["password"].append(new_password)
+
+    calls["password"] = []
+
+    monkeypatch.setattr(api_client, "change_password", fake_change_password)
     monkeypatch.setattr(api_client, "login", fake_login)
     monkeypatch.setattr(api_client, "logout", lambda token: _check(token))
     monkeypatch.setattr(api_client, "get_me", fake_me)
@@ -218,6 +227,126 @@ def test_nav_shows_username_and_logout(client):
     r = client.get("/")
     assert "admin" in r.text
     assert 'action="/logout"' in r.text
+
+
+def test_user_menu_has_password_and_logout(client):
+    r = client.get("/")
+    assert 'id="user-menu"' in r.text
+    assert 'href="/password"' in r.text
+    assert 'action="/logout"' in r.text
+    js = client.get("/static/calendar.js")
+    assert "user-menu-btn" in js.text
+
+
+def test_password_page_renders(client):
+    r = client.get("/password")
+    assert r.status_code == 200
+    for field in ("current_password", "new_password", "confirm_password"):
+        assert f'name="{field}"' in r.text
+
+
+def test_password_page_requires_login(anon):
+    r = anon.get("/password", follow_redirects=False)
+    assert r.status_code == 303
+    assert r.headers["location"] == "/login"
+
+
+def test_password_change_success(client, fake_backend):
+    r = client.post(
+        "/password",
+        data={
+            "current_password": "secret",
+            "new_password": "NewPass1",
+            "confirm_password": "NewPass1",
+        },
+    )
+    assert r.status_code == 200
+    assert "Password changed." in r.text
+    assert fake_backend["password"] == ["NewPass1"]
+
+
+def test_password_change_mismatch(client, fake_backend):
+    r = client.post(
+        "/password",
+        data={
+            "current_password": "secret",
+            "new_password": "NewPass1",
+            "confirm_password": "Different",
+        },
+    )
+    assert r.status_code == 400
+    assert "do not match" in r.text
+    assert fake_backend["password"] == []
+
+
+def test_password_change_wrong_current(client, fake_backend):
+    r = client.post(
+        "/password",
+        data={
+            "current_password": "wrong",
+            "new_password": "NewPass1",
+            "confirm_password": "NewPass1",
+        },
+    )
+    assert r.status_code == 400
+    assert "Current password is incorrect" in r.text
+    assert fake_backend["password"] == []
+
+
+def test_calendar_contains_password_modal(client):
+    r = client.get("/")
+    assert 'id="pw-modal"' in r.text
+    js = client.get("/static/calendar.js")
+    assert "/password/change" in js.text
+
+
+def test_password_change_api_success(client, fake_backend):
+    r = client.post(
+        "/password/change",
+        data={
+            "current_password": "secret",
+            "new_password": "NewPass1",
+            "confirm_password": "NewPass1",
+        },
+    )
+    assert r.status_code == 200
+    assert r.json() == {"status": "ok"}
+    assert fake_backend["password"] == ["NewPass1"]
+
+
+def test_password_change_api_errors(client, anon, fake_backend):
+    r = client.post(
+        "/password/change",
+        data={
+            "current_password": "wrong",
+            "new_password": "NewPass1",
+            "confirm_password": "NewPass1",
+        },
+    )
+    assert r.status_code == 400
+    assert r.json()["detail"] == "Current password is incorrect"
+
+    r = client.post(
+        "/password/change",
+        data={
+            "current_password": "secret",
+            "new_password": "NewPass1",
+            "confirm_password": "Other",
+        },
+    )
+    assert r.status_code == 400
+    assert "do not match" in r.json()["detail"]
+
+    r = anon.post(
+        "/password/change",
+        data={
+            "current_password": "x",
+            "new_password": "NewPass1",
+            "confirm_password": "NewPass1",
+        },
+    )
+    assert r.status_code == 401
+    assert fake_backend["password"] == []
 
 
 # --- calendar ------------------------------------------------------------

@@ -81,6 +81,15 @@ def get_me(token: str) -> dict:
     return _get("/auth/me", token)
 
 
+def change_password(token: str, current_password: str, new_password: str) -> None:
+    _request(
+        "POST",
+        "/auth/password",
+        token,
+        json={"current_password": current_password, "new_password": new_password},
+    )
+
+
 # --- data --------------------------------------------------------------------
 
 

@@ -9,6 +9,77 @@ function navGo() {
   window.location = `/${m}/${y}?months=${n}&group=${g}`;
 }
 
+// Change-password modal: opened from the user menu, submits via fetch so
+// errors and success show inline. Falls back to the /password page w/o JS.
+(function () {
+  const modal = document.getElementById('pw-modal');
+  if (!modal) return;
+  const form = modal.querySelector('form');
+  const error = document.getElementById('pw-error');
+  const done = document.getElementById('pw-done');
+
+  function reset() {
+    form.reset();
+    error.classList.add('hidden');
+    done.classList.add('hidden');
+  }
+
+  document.addEventListener('click', function (e) {
+    const a = e.target.closest('a[href="/password"]');
+    if (!a) return;
+    e.preventDefault();
+    const menu = document.getElementById('user-menu-list');
+    if (menu) menu.classList.add('hidden');
+    reset();
+    modal.showModal();
+  });
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    error.classList.add('hidden');
+    done.classList.add('hidden');
+    if (form.elements.new_password.value !== form.elements.confirm_password.value) {
+      error.textContent = 'New passwords do not match';
+      error.classList.remove('hidden');
+      return;
+    }
+    let r;
+    try {
+      r = await fetch('/password/change', { method: 'POST', body: new FormData(form) });
+    } catch {
+      error.textContent = 'Could not reach the server';
+      error.classList.remove('hidden');
+      return;
+    }
+    if (r.status === 401) {
+      window.location = '/login';
+      return;
+    }
+    if (!r.ok) {
+      const body = await r.json().catch(() => ({}));
+      error.textContent = body.detail || 'Password change failed';
+      error.classList.remove('hidden');
+      return;
+    }
+    form.reset();
+    done.classList.remove('hidden');
+  });
+})();
+
+// User menu: click the username to toggle, click anywhere else to close.
+(function () {
+  const btn = document.getElementById('user-menu-btn');
+  const list = document.getElementById('user-menu-list');
+  if (!btn) return;
+  btn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    list.classList.toggle('hidden');
+  });
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('#user-menu')) list.classList.add('hidden');
+  });
+})();
+
 (function () {
   const modal = document.getElementById('add-modal');
   const title = document.getElementById('modal-title');
