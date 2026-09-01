@@ -226,6 +226,10 @@
 
       <input type="hidden" name="months" value="{{ sel_count }}">
       <input type="hidden" name="group" value="{{ sel_group }}">
+      {# The view to come back to, so saving cannot re-anchor the calendar
+         on the absence's own month. #}
+      <input type="hidden" name="month" value="{{ sel_month }}">
+      <input type="hidden" name="year" value="{{ sel_year }}">
 
       <div class="flex gap-2">
         <button type="submit"
@@ -244,6 +248,10 @@
           class="hidden bg-white px-6 pb-6">
       <input type="hidden" name="months" value="{{ sel_count }}">
       <input type="hidden" name="group" value="{{ sel_group }}">
+      {# The view to come back to, so saving cannot re-anchor the calendar
+         on the absence's own month. #}
+      <input type="hidden" name="month" value="{{ sel_month }}">
+      <input type="hidden" name="year" value="{{ sel_year }}">
       <input type="hidden" name="abs_date_start" value="">
       <button type="submit"
               class="w-full rounded-md border border-red-300 bg-red-50 px-3 py-1.5 text-red-700 hover:bg-red-100 transition-colors">

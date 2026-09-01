@@ -67,6 +67,8 @@
 
       <input type="hidden" name="months" value="{{ months }}">
       <input type="hidden" name="group" value="{{ group }}">
+      {% if month %}<input type="hidden" name="month" value="{{ month }}">{% endif %}
+      {% if year %}<input type="hidden" name="year" value="{{ year }}">{% endif %}
 
       <div class="flex gap-2">
         <button type="submit"
@@ -86,6 +88,8 @@
           class="bg-white/90 backdrop-blur border border-gray-300 shadow-sm rounded-lg p-3">
       <input type="hidden" name="months" value="{{ months }}">
       <input type="hidden" name="group" value="{{ group }}">
+      {% if month %}<input type="hidden" name="month" value="{{ month }}">{% endif %}
+      {% if year %}<input type="hidden" name="year" value="{{ year }}">{% endif %}
       <input type="hidden" name="abs_date_start" value="{{ values.get('abs_date_start', '') }}">
       <button type="submit"
               class="w-full rounded-md border border-red-300 bg-red-50 px-3 py-1.5 text-red-700 hover:bg-red-100 transition-colors">

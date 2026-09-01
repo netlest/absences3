@@ -73,6 +73,9 @@ def _in_range(day: str, date_from, date_to) -> bool:
 
 @pytest.fixture(autouse=True)
 def fake_backend(monkeypatch):
+    # Per-test stand-in for the prefs slot inside sessions.data.
+    session_prefs: dict = {}
+
     def fake_login(username, password):
         if (username, password) != ("admin", "secret"):
             raise api_client.Unauthorized("Invalid username or password")
@@ -80,7 +83,7 @@ def fake_backend(monkeypatch):
 
     def fake_me(token):
         _check(token)
-        return ME
+        return {**ME, "prefs": dict(session_prefs)}
 
     def fake_groups(token):
         _check(token)
@@ -146,7 +149,17 @@ def fake_backend(monkeypatch):
     monkeypatch.setattr(api_client, "change_password", fake_change_password)
     monkeypatch.setattr(api_client, "login", fake_login)
     monkeypatch.setattr(api_client, "logout", lambda token: _check(token))
+    def fake_save_prefs(token, prefs):
+        _check(token)
+        calls["prefs"].append(prefs)
+        session_prefs.clear()
+        session_prefs.update(prefs)
+        return prefs
+
+    calls["prefs"] = []
+
     monkeypatch.setattr(api_client, "get_me", fake_me)
+    monkeypatch.setattr(api_client, "save_prefs", fake_save_prefs)
     monkeypatch.setattr(api_client, "get_groups", fake_groups)
     monkeypatch.setattr(api_client, "get_absence_types", fake_types)
     monkeypatch.setattr(api_client, "get_objects", fake_objects)
@@ -509,7 +522,10 @@ def test_delete_absence_posts_and_redirects(client, fake_backend):
 
 def test_editable_absence_is_link_in_grid(client):
     r = client.get("/05/2026")
-    assert 'href="/absences/1/edit?months=1&amp;group=1"' in r.text
+    assert (
+        'href="/absences/1/edit?months=1&amp;group=1&amp;month=5&amp;year=2026"'
+        in r.text
+    )
 
 
 def test_non_editable_absence_is_not_link(client):
@@ -523,8 +539,8 @@ def test_empty_cell_in_own_row_links_to_prefilled_add_form(client):
     # May 1 is free for Adam (object 1): the empty cell links to the add
     # form with the object and the clicked date preselected.
     assert (
-        'href="/absences/new?object_id=1&amp;months=1&amp;group=1&amp;date=2026-05-01"'
-        in r.text
+        'href="/absences/new?object_id=1&amp;months=1&amp;group=1'
+        '&amp;month=5&amp;year=2026&amp;date=2026-05-01"' in r.text
     )
 
 
@@ -590,3 +606,173 @@ def test_backend_down_returns_503(client, monkeypatch):
     monkeypatch.setattr(api_client, "get_me", boom)
     r = client.get("/")
     assert r.status_code == 503
+
+
+def test_debug_session_dumps_payload(client):
+    r = client.get("/debug/session")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["status"] == "ok"
+    assert body["cookie_present"] is True
+    assert body["token"] == TOKEN
+    assert body["data"] == {**ME, "prefs": {}}
+
+
+def test_debug_session_without_cookie(anon):
+    body = anon.get("/debug/session").json()
+    assert body["status"] == "no-cookie"
+    assert body["cookie_present"] is False
+    assert body["token"] is None
+    assert body["data"] is None
+
+
+def test_debug_session_reports_expired_token():
+    c = TestClient(app)
+    c.cookies.set("session", "stale-token")
+    body = c.get("/debug/session").json()
+    assert body["status"] == "invalid-or-expired"
+    assert body["data"] is None
+
+
+def test_debug_session_reports_backend_down(client, monkeypatch):
+    def boom(token):
+        raise api_client.BackendUnavailable("GET /auth/me: connection refused")
+
+    monkeypatch.setattr(api_client, "get_me", boom)
+    body = client.get("/debug/session").json()
+    assert body["status"] == "backend-unavailable"
+    assert "connection refused" in body["error"]
+
+
+def test_view_choices_are_saved_to_the_session(client, fake_backend):
+    client.get("/05/2026?months=3&group=2")
+    assert fake_backend["prefs"][-1] == {
+        "months": 3, "month": 5, "year": 2026, "group": 2,
+    }
+
+
+def test_root_resumes_the_saved_view(client, fake_backend):
+    client.get("/05/2026?months=3&group=2")
+    r = client.get("/")
+    assert "May 2026" in r.text
+    assert 'value="3" selected' in r.text
+    # Resuming an unchanged view must not write to the session again.
+    assert len(fake_backend["prefs"]) == 1
+
+
+def test_explicit_query_overrides_saved_view(client, fake_backend):
+    client.get("/05/2026?months=3&group=2")
+    r = client.get("/06/2026?months=1&group=1")
+    assert "June 2026" in r.text
+    assert fake_backend["prefs"][-1] == {
+        "months": 1, "month": 6, "year": 2026, "group": 1,
+    }
+
+
+def test_saved_group_survives_a_month_only_url(client, fake_backend):
+    client.get("/05/2026?months=3&group=2")
+    client.get("/07/2026")
+    assert fake_backend["prefs"][-1] == {
+        "months": 3, "month": 7, "year": 2026, "group": 2,
+    }
+
+
+def test_empty_prefs_fall_back_to_the_current_month(client, fake_backend):
+    from datetime import date as _date
+
+    today = _date.today()
+    r = client.get("/")
+    assert f"{today.year}" in r.text
+    assert fake_backend["prefs"][-1] == {
+        "months": 1, "month": today.month, "year": today.year, "group": 1,
+    }
+
+
+def test_prefs_show_up_in_debug_session(client):
+    client.get("/05/2026?months=3&group=2")
+    body = client.get("/debug/session").json()
+    assert body["data"]["prefs"] == {
+        "months": 3, "month": 5, "year": 2026, "group": 2,
+    }
+
+
+def test_adding_absence_returns_to_the_same_span(client, fake_backend):
+    """The reported bug: a 4-month view from October, absence added in
+    November, must come back to October–January, not re-anchor on November."""
+    client.get("/10/2026?months=4&group=1")
+    r = client.post(
+        "/absences/new",
+        data={
+            "object_id": 1, "type_id": 4,
+            "abs_date_start": "2026-11-10", "abs_date_end": "2026-11-12",
+            "description": "Listopad", "months": 4, "group": 1,
+            "month": 10, "year": 2026,
+        },
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    assert r.headers["location"] == "/10/2026?months=4&group=1"
+
+
+def test_adding_absence_leaves_saved_prefs_alone(client, fake_backend):
+    client.get("/10/2026?months=4&group=1")
+    before = fake_backend["prefs"][-1]
+    client.post(
+        "/absences/new",
+        data={
+            "object_id": 1, "type_id": 4,
+            "abs_date_start": "2026-11-10", "abs_date_end": "2026-11-12",
+            "description": "Listopad", "months": 4, "group": 1,
+            "month": 10, "year": 2026,
+        },
+        follow_redirects=True,
+    )
+    assert fake_backend["prefs"][-1] == before == {
+        "months": 4, "month": 10, "year": 2026, "group": 1,
+    }
+
+
+def test_editing_absence_returns_to_the_same_span(client):
+    r = client.post(
+        "/absences/1/edit",
+        data={
+            "object_id": 1, "type_id": 4,
+            "abs_date_start": "2026-11-10", "abs_date_end": "2026-11-12",
+            "description": "Listopad", "months": 4, "group": 1,
+            "month": 10, "year": 2026,
+        },
+        follow_redirects=False,
+    )
+    assert r.headers["location"] == "/10/2026?months=4&group=1"
+
+
+def test_deleting_absence_returns_to_the_same_span(client):
+    r = client.post(
+        "/absences/1/delete",
+        data={
+            "months": 4, "group": 1, "abs_date_start": "2026-11-10",
+            "month": 10, "year": 2026,
+        },
+        follow_redirects=False,
+    )
+    assert r.headers["location"] == "/10/2026?months=4&group=1"
+
+
+def test_modal_forms_carry_the_view(client):
+    r = client.get("/10/2026?months=4&group=1")
+    assert r.text.count('<input type="hidden" name="month" value="10">') == 2
+    assert r.text.count('<input type="hidden" name="year" value="2026">') == 2
+
+
+def test_save_without_a_view_still_falls_back_to_the_absence_month(client):
+    """Old links / bookmarks that carry no month+year keep the old behaviour."""
+    r = client.post(
+        "/absences/new",
+        data={
+            "object_id": 1, "type_id": 4,
+            "abs_date_start": "2026-11-10", "abs_date_end": "2026-11-12",
+            "description": "Listopad", "months": 1, "group": 1,
+        },
+        follow_redirects=False,
+    )
+    assert r.headers["location"] == "/11/2026?months=1&group=1"

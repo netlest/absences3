@@ -5,7 +5,7 @@
 #   docker run ... ghcr.io/netlest/absences3 frontend   # UI  on :8000
 #
 # Configuration is environment-only (no .env files are baked in):
-#   backend:  DATABASE_URL (required), SESSION_TTL_HOURS (default 12)
+#   backend:  DATABASE_URL (required), SESSION_TTL_HOURS (default 48)
 #   frontend: BACKEND_URL (default http://127.0.0.1:8001)
 #   both:     PORT overrides the default listen port
 
