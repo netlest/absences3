@@ -14,6 +14,37 @@ two packages:
   absence types, absences, user_groups, holidays); the backend depends on it
   as a workspace package.
 
+## Local development database
+
+The backend talks to a local PostgreSQL database called `kalendarz`, reached
+over the Unix socket (peer auth — no password in the connection string). One-time
+setup:
+
+```bash
+createdb -T template0 kalendarz
+psql -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE kalendarz TO adam;"
+psql -d kalendarz -v ON_ERROR_STOP=1 -f sql_ddl/schema.sql
+psql -d kalendarz -v ON_ERROR_STOP=1 -f sql_ddl/v_absences.sql
+cp backend/.env.example backend/.env
+uv run --directory backend python seed_dev.py
+```
+
+`-T template0` sidesteps the collation-version mismatch a `template1` created
+under an older glibc reports; drop it if your `template1` is current.
+
+`seed_dev.py` fills an empty database with an admin login (`admin` / `admin`),
+one group, three objects, four absence types, a few September 2026 absences and
+the Polish holidays — development only, and a no-op once `users` has rows.
+
+Connection settings live in `backend/.env` (gitignored, see
+`backend/.env.example`):
+
+```
+DATABASE_URL=postgresql+psycopg:///kalendarz
+```
+
+Start over with `dropdb kalendarz` and re-run the block above.
+
 ## Run with uv (recommended)
 
 [uv](https://docs.astral.sh/uv/) reads the workspace `pyproject.toml`, creates
@@ -47,9 +78,16 @@ uvicorn app:app --reload
 
 | URL                          | Shows                       |
 |------------------------------|-----------------------------|
-| `/`                          | current month               |
+| `/`                          | last view, else this month  |
 | `/05/2026`                   | May 2026 (`/{month}/{year}`)|
 | `/09/2026`                   | September 2026              |
+| `/debug/session`             | your own session as JSON    |
+
+`/` with no query parameters resumes the last view — month, year, month
+count and group are written into `sessions.data` on every navigation
+(last view wins) and read back on the next request. They live and die
+with the session: logout deletes the row, so a fresh login starts on the
+current month again.
 
 ## Files
 
@@ -60,6 +98,8 @@ uvicorn app:app --reload
 - `frontend/templates/calendar.html` — the CSS-grid template with the Tailwind navbar. Fira Code is loaded from Google Fonts with a monospace fallback.
 - `frontend/sample_data.py` — stand-in data (the 7 example rows + a few sample absences/holidays). Swap `get_month_data()` for your SQLAlchemy queries to wire it into the real `absences` app.
 - `frontend/tests/test_app.py` — smoke tests (routes render, CW bars, 30-day pad, holidays, 404 on bad month).
+- `backend/seed_dev.py` — one-shot development seed (admin login, sample
+  group/objects/absences/holidays); refuses to run twice.
 - `backend/app.py` — minimal FastAPI app; `/` reports service status and the installed SQLAlchemy version.
 - `models/src/models/__init__.py` — declarative models (`DeclarativeBase`/`Mapped`/`mapped_column`) mirroring the PostgreSQL DDL, importable as `from models import User, Absence, ...`.
 

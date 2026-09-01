@@ -18,11 +18,17 @@ Then open:
 """
 
 import calendar
+import os
 from datetime import date
 from pathlib import Path
 
 from fastapi import FastAPI, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import (
+    HTMLResponse,
+    JSONResponse,
+    RedirectResponse,
+    Response,
+)
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -31,7 +37,11 @@ from calendar_grid import build_context
 
 BASE_DIR = Path(__file__).resolve().parent
 SESSION_COOKIE = "session"
-COOKIE_MAX_AGE = 12 * 3600  # keep in sync with the backend's session TTL
+# Cookie lifetime tracks the backend session TTL: both read SESSION_TTL_HOURS,
+# so one env var keeps them in sync (a cookie outliving its session would
+# just bounce the user to /login).
+SESSION_TTL_HOURS = int(os.environ.get("SESSION_TTL_HOURS", "48"))
+COOKIE_MAX_AGE = SESSION_TTL_HOURS * 3600
 
 app = FastAPI(title="Absences calendar (CSS grid)")
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
@@ -45,13 +55,21 @@ def _shift(year: int, month: int, delta: int) -> tuple[int, int]:
 
 
 def _month_absences(
-    absences: list[dict], year: int, month: int, months: int, group: int
+    absences: list[dict],
+    year: int,
+    month: int,
+    months: int,
+    group: int,
+    view: tuple[int, int] | None = None,
 ) -> list[dict]:
     """Grid-shaped absences for one month.
 
     v_absences rows never cross a month boundary, so matching on the start
-    month is exact. Rows the user may modify become links to the edit form.
+    month is exact. Rows the user may modify become links to the edit form,
+    carrying `view` — the (year, month) the calendar starts on — so saving
+    returns to the same span rather than jumping to the absence's month.
     """
+    back = f"&month={view[1]}&year={view[0]}" if view else ""
     key = f"{year:04d}-{month:02d}"
     return [
         {
@@ -61,7 +79,7 @@ def _month_absences(
             "color": a["color"] or "#7ec8e3",
             "caption": a["description"] or a["type_name"] or "",
             "href": (
-                f"/absences/{a['id']}/edit?months={months}&group={group}"
+                f"/absences/{a['id']}/edit?months={months}&group={group}{back}"
                 if a.get("editable")
                 else None
             ),
@@ -87,11 +105,19 @@ def _login_redirect() -> RedirectResponse:
 
 
 def _render(
-    request: Request, year: int, month: int, months: int = 1, group: int | None = None
+    request: Request,
+    year: int | None = None,
+    month: int | None = None,
+    months: int | None = None,
+    group: int | None = None,
 ) -> Response:
-    if not (1 <= month <= 12):
+    """Render the calendar; None arguments fall back to the session's prefs.
+
+    Whatever the request ends up showing is written back to the session, so
+    the next visit without query parameters resumes here (last view wins).
+    """
+    if month is not None and not (1 <= month <= 12):
         raise HTTPException(status_code=404, detail="Month must be 1-12")
-    months = max(1, min(12, months))
 
     token = request.cookies.get(SESSION_COOKIE)
     if not token:
@@ -99,11 +125,29 @@ def _render(
 
     try:
         me = api_client.get_me(token)
+        prefs = me.get("prefs") or {}
+        today = date.today()
+        year = year if year is not None else prefs.get("year") or today.year
+        month = month if month is not None else prefs.get("month") or today.month
+        months = months if months is not None else prefs.get("months") or 1
+        group = group if group is not None else prefs.get("group")
+        months = max(1, min(12, months))
+
         groups = api_client.get_groups(token)
         if not groups:
             raise HTTPException(status_code=503, detail="No groups visible")
         if group not in {g["id"] for g in groups}:
             group = groups[0]["id"]
+
+        # Persist the resolved view (best effort — a failed save must not
+        # cost the user the page they asked for).
+        shown = {"months": months, "month": month, "year": year, "group": group}
+        if shown != prefs:
+            try:
+                api_client.save_prefs(token, shown)
+            except api_client.ApiError:
+                pass
+
         group_objects = api_client.get_objects(token, group)
         editable_objects = api_client.get_editable_objects(token)
         editable_ids = {o["id"] for o in editable_objects}
@@ -113,7 +157,8 @@ def _render(
             {
                 "name": o["name"],
                 "add_base": (
-                    f"/absences/new?object_id={o['id']}&months={months}&group={group}"
+                    f"/absences/new?object_id={o['id']}&months={months}"
+                    f"&group={group}&month={month}&year={year}"
                     if o["id"] in editable_ids
                     else None
                 ),
@@ -141,7 +186,9 @@ def _render(
                 y,
                 m,
                 objects_ctx,
-                absences=_month_absences(absences, y, m, months, group),
+                absences=_month_absences(
+                    absences, y, m, months, group, view=(year, month)
+                ),
                 holidays=_month_holidays(holidays, y, m),
             )
         )
@@ -296,6 +343,8 @@ def _absence_form(
     group: int,
     form: dict | None = None,
     status_code: int = 200,
+    month: int | None = None,
+    year: int | None = None,
 ) -> Response:
     """Render the add/edit form. `form` re-fills fields after an error."""
     try:
@@ -314,15 +363,33 @@ def _absence_form(
         "error": error,
         "months": months,
         "group": group,
+        "month": month,
+        "year": year,
     }
     return templates.TemplateResponse(
         request, "absence_form.html", context, status_code=status_code
     )
 
 
-def _back_url(start: date, months: int, group: int) -> str:
-    """Calendar view showing the month the (saved) absence starts in."""
-    return f"/{start.month:02d}/{start.year}?months={months}&group={group}"
+def _back_url(
+    months: int,
+    group: int,
+    month: int | None = None,
+    year: int | None = None,
+    start: date | None = None,
+) -> str:
+    """Calendar view to return to after saving.
+
+    Prefers the view the user came from — its first month, not the month the
+    absence happens to fall in — so a 4-month view starting in October comes
+    back unchanged after adding an absence in November. Falls back to the
+    absence's own month for callers that don't carry the view.
+    """
+    if month is None or year is None:
+        if start is None:
+            return f"/?months={months}&group={group}"
+        month, year = start.month, start.year
+    return f"/{month:02d}/{year}?months={months}&group={group}"
 
 
 @app.get("/absences/new", response_class=HTMLResponse)
@@ -332,6 +399,8 @@ def absence_new(
     group: int = 1,
     object_id: int | None = None,
     date: date | None = None,
+    month: int | None = None,
+    year: int | None = None,
 ):
     token = request.cookies.get(SESSION_COOKIE)
     if not token:
@@ -345,6 +414,7 @@ def absence_new(
     return _absence_form(
         request, token, absence=None, error=None,
         months=months, group=group, form=prefill or None,
+        month=month, year=year,
     )
 
 
@@ -358,6 +428,8 @@ def absence_create(
     description: str = Form(""),
     months: int = Form(1),
     group: int = Form(1),
+    month: int | None = Form(None),
+    year: int | None = Form(None),
 ):
     token = request.cookies.get(SESSION_COOKIE)
     if not token:
@@ -377,10 +449,13 @@ def absence_create(
         return _absence_form(
             request, token, absence=None, error=str(exc),
             months=months, group=group, form=payload, status_code=400,
+            month=month, year=year,
         )
     except api_client.BackendUnavailable as exc:
         raise HTTPException(status_code=503, detail=f"Backend unavailable: {exc}")
-    return RedirectResponse(_back_url(abs_date_start, months, group), status_code=303)
+    return RedirectResponse(
+        _back_url(months, group, month, year, abs_date_start), status_code=303
+    )
 
 
 @app.get("/absences/{absence_id}/data")
@@ -404,7 +479,14 @@ def absence_data(request: Request, absence_id: int):
 
 
 @app.get("/absences/{absence_id}/edit", response_class=HTMLResponse)
-def absence_edit(request: Request, absence_id: int, months: int = 1, group: int = 1):
+def absence_edit(
+    request: Request,
+    absence_id: int,
+    months: int = 1,
+    group: int = 1,
+    month: int | None = None,
+    year: int | None = None,
+):
     token = request.cookies.get(SESSION_COOKIE)
     if not token:
         return _login_redirect()
@@ -419,7 +501,8 @@ def absence_edit(request: Request, absence_id: int, months: int = 1, group: int 
     if not absence["editable"]:
         raise HTTPException(status_code=403, detail="Not your absence")
     return _absence_form(
-        request, token, absence=absence, error=None, months=months, group=group
+        request, token, absence=absence, error=None, months=months, group=group,
+        month=month, year=year,
     )
 
 
@@ -434,6 +517,8 @@ def absence_update(
     description: str = Form(""),
     months: int = Form(1),
     group: int = Form(1),
+    month: int | None = Form(None),
+    year: int | None = Form(None),
 ):
     token = request.cookies.get(SESSION_COOKIE)
     if not token:
@@ -453,11 +538,13 @@ def absence_update(
         return _absence_form(
             request, token, absence={"id": absence_id, **payload},
             error=str(exc), months=months, group=group, form=payload,
-            status_code=400,
+            status_code=400, month=month, year=year,
         )
     except api_client.BackendUnavailable as exc:
         raise HTTPException(status_code=503, detail=f"Backend unavailable: {exc}")
-    return RedirectResponse(_back_url(abs_date_start, months, group), status_code=303)
+    return RedirectResponse(
+        _back_url(months, group, month, year, abs_date_start), status_code=303
+    )
 
 
 @app.post("/absences/{absence_id}/delete")
@@ -467,6 +554,8 @@ def absence_delete(
     months: int = Form(1),
     group: int = Form(1),
     abs_date_start: date | None = Form(None),
+    month: int | None = Form(None),
+    year: int | None = Form(None),
 ):
     token = request.cookies.get(SESSION_COOKIE)
     if not token:
@@ -479,8 +568,9 @@ def absence_delete(
         raise HTTPException(status_code=403, detail=str(exc))
     except api_client.BackendUnavailable as exc:
         raise HTTPException(status_code=503, detail=f"Backend unavailable: {exc}")
-    back = _back_url(abs_date_start, months, group) if abs_date_start else "/"
-    return RedirectResponse(back, status_code=303)
+    return RedirectResponse(
+        _back_url(months, group, month, year, abs_date_start), status_code=303
+    )
 
 
 # --- manage pages ---------------------------------------------------------------
@@ -495,15 +585,59 @@ app.include_router(manage.router)
 # --- calendar routes ----------------------------------------------------------
 
 
+@app.get("/debug/session")
+def debug_session(request: Request) -> JSONResponse:
+    """Dump the caller's own session as JSON, for debugging.
+
+    Shows the session cookie this request carried and the payload the backend
+    keeps for that token in `sessions.data` (user_id / username / admin).
+    Scoped to the caller: it reads only the cookie the browser sent, so it
+    cannot reveal anyone else's session. Always answers 200 — `status` says
+    what happened, so a failure is readable in the browser instead of an
+    error page.
+    """
+    token = request.cookies.get(SESSION_COOKIE)
+    info: dict = {
+        "status": "ok",
+        "cookie_name": SESSION_COOKIE,
+        "cookie_present": token is not None,
+        "token": token,
+        "cookie_max_age": COOKIE_MAX_AGE,
+        "backend_url": api_client.BACKEND_URL,
+        "data": None,
+    }
+
+    if token is None:
+        info["status"] = "no-cookie"
+        return JSONResponse(info)
+
+    try:
+        info["data"] = api_client.get_me(token)
+    except api_client.Unauthorized as exc:
+        info["status"] = "invalid-or-expired"
+        info["error"] = str(exc)
+    except api_client.BackendUnavailable as exc:
+        info["status"] = "backend-unavailable"
+        info["error"] = str(exc)
+
+    return JSONResponse(info)
+
+
 @app.get("/", response_class=HTMLResponse)
-def current_month(request: Request, months: int = 1, group: int | None = None):
-    today = date.today()
-    return _render(request, today.year, today.month, months, group)
+def current_month(
+    request: Request, months: int | None = None, group: int | None = None
+):
+    """Resumes the session's last view; falls back to the current month."""
+    return _render(request, None, None, months, group)
 
 
 @app.get("/{month}/{year}", response_class=HTMLResponse)
 def month_view(
-    request: Request, month: int, year: int, months: int = 1, group: int | None = None
+    request: Request,
+    month: int,
+    year: int,
+    months: int | None = None,
+    group: int | None = None,
 ):
     """e.g. /05/2026 -> May 2026, /05/2026?months=3&group=2 -> May-Jul, group 2."""
     return _render(request, year, month, months, group)

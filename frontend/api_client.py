@@ -101,6 +101,11 @@ def get_me(token: str) -> dict:
     return _get("/auth/me", token)
 
 
+def save_prefs(token: str, prefs: dict) -> dict:
+    """Store the calendar view choices in the session payload."""
+    return _request("PUT", "/auth/prefs", token, json=prefs)
+
+
 def change_password(token: str, current_password: str, new_password: str) -> None:
     _request(
         "POST",

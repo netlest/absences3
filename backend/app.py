@@ -102,7 +102,12 @@ def login(body: LoginRequest, db: Session = Depends(get_db)) -> dict:
     db.execute(delete(UserSession).where(UserSession.expiry < _utcnow()))
 
     token = secrets.token_urlsafe(32)
-    payload = {"user_id": user.id, "username": user.username, "admin": user.admin}
+    payload = {
+        "user_id": user.id,
+        "username": user.username,
+        "admin": user.admin,
+        "prefs": {},
+    }
     db.add(
         UserSession(
             session_id=token,
@@ -126,6 +131,33 @@ def logout(
 @app.get("/auth/me")
 def me(user: dict = Depends(current_user)) -> dict:
     return user
+
+
+class PrefsRequest(BaseModel):
+    """Calendar view choices the frontend restores on the next request."""
+
+    months: int = Field(ge=1, le=12)
+    month: int = Field(ge=1, le=12)
+    year: int = Field(ge=1970, le=2999)
+    group: int | None = None
+
+
+@app.put("/auth/prefs")
+def save_prefs(
+    body: PrefsRequest,
+    sess: UserSession = Depends(_session_or_401),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Merge the caller's view choices into their own session payload.
+
+    Lives in sessions.data, so it survives navigation and reloads for the
+    session's TTL and dies with it — logout deletes the row.
+    """
+    payload = json.loads(sess.data or b"{}")
+    payload["prefs"] = body.model_dump()
+    sess.data = json.dumps(payload).encode()
+    db.commit()
+    return payload["prefs"]
 
 
 class PasswordChange(BaseModel):
