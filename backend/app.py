@@ -26,7 +26,6 @@ from sqlalchemy import delete, func, insert, select, update
 from sqlalchemy.orm import Session
 
 from config import settings
-from security import hash_password, verify_password
 from db import get_db
 from models import (
     Absence,
@@ -39,6 +38,7 @@ from models import (
     VAbsence,
     user_groups,
 )
+from security import hash_password, verify_password
 
 app = FastAPI(title="Absences backend")
 
@@ -437,9 +437,7 @@ def list_absence_types(
 ) -> list[dict]:
     """All defined absence types with their display colors."""
     q = select(AbsenceType).order_by(AbsenceType.id)
-    return [
-        {"id": t.id, "name": t.name, "color": t.color} for t in db.scalars(q)
-    ]
+    return [{"id": t.id, "name": t.name, "color": t.color} for t in db.scalars(q)]
 
 
 @app.get("/holidays")
@@ -483,9 +481,7 @@ def list_holidays(
 
 def require_admin(user: dict = Depends(current_user)) -> dict:
     if not user.get("admin"):
-        raise HTTPException(
-            status_code=403, detail="Administrator privileges required"
-        )
+        raise HTTPException(status_code=403, detail="Administrator privileges required")
     return user
 
 
@@ -501,7 +497,9 @@ Str255 = Annotated[
 Username = Annotated[
     str,
     StringConstraints(
-        strip_whitespace=True, min_length=1, max_length=30,
+        strip_whitespace=True,
+        min_length=1,
+        max_length=30,
         pattern=r"^[A-Za-z0-9_. -]+$",
     ),
 ]
@@ -913,7 +911,9 @@ def delete_absence_type(
 class HolidayIn(BaseModel):
     country: Annotated[
         str,
-        StringConstraints(strip_whitespace=True, to_lower=True, pattern=r"^[A-Za-z]{2,4}$"),
+        StringConstraints(
+            strip_whitespace=True, to_lower=True, pattern=r"^[A-Za-z]{2,4}$"
+        ),
     ]
     event_date: date
     description: str | None = Field(default=None, max_length=150)

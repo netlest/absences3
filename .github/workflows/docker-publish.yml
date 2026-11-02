@@ -12,6 +12,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
+      - name: Lint (ruff)
+        run: uv run ruff check .
+      - name: Check formatting (ruff)
+        run: uv run ruff format --check .
       - name: Run frontend tests
         run: uv run --directory frontend pytest -q
 

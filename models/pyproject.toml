@@ -4,7 +4,6 @@ version = "0.1.0"
 description = "Shared SQLAlchemy models for the absences apps"
 requires-python = ">=3.10"
 dependencies = [
-    "ruff>=0.17.3",
     "sqlalchemy>=2.0",
 ]
 

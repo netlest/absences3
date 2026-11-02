@@ -11,10 +11,12 @@ uv run --directory frontend uvicorn app:app --reload --port 8000   # UI
 uv run --directory backend  uvicorn app:app --reload --port 8001   # API
 uv run --directory frontend pytest                                  # all tests (what CI runs)
 uv run --directory frontend pytest tests/test_manage.py::test_name  # single test
-uv sync --all-packages --group dev                                  # optional pre-install
+uv run ruff check .                                                 # lint (--fix to autofix)
+uv run ruff format .                                                # format (--check in CI)
+uv sync --all-packages                                              # optional pre-install
 ```
 
-There is no linter configured and no backend test suite; the only tests are in `frontend/tests/`.
+Ruff is the linter and formatter (root `dev` dependency group; config in `[tool.ruff]` of the root `pyproject.toml`): ruff's default rules plus **UP045** — write `X | None`, never `Optional[X]`. `src` lists the member dirs so isort treats `api_client`, `models`, etc. as first-party; FastAPI `Depends`/`Form`/`Query` are exempt from B008. All code must pass `ruff check .` and `ruff format --check .`. There is no backend test suite; the only tests are in `frontend/tests/`.
 
 ### Local database
 
@@ -22,7 +24,7 @@ The backend needs PostgreSQL. Local dev uses a database `kalendarz` over the Uni
 
 ### Docker
 
-One image for both apps (`Dockerfile`, `docker-entrypoint.sh`): the container argument picks `backend` (default, :8001) or `frontend` (:8000). Config is env-only: backend `DATABASE_URL`, `SESSION_TTL_HOURS` (default 48); frontend `BACKEND_URL` (default `http://127.0.0.1:8001`); `PORT` for both. CI (`.github/workflows/docker-publish.yml`) runs the frontend tests, then publishes to `ghcr.io/netlest/absences3` on pushes to `main` and `v*` tags.
+One image for both apps (`Dockerfile`, `docker-entrypoint.sh`): the container argument picks `backend` (default, :8001) or `frontend` (:8000). Config is env-only: backend `DATABASE_URL`, `SESSION_TTL_HOURS` (default 48); frontend `BACKEND_URL` (default `http://127.0.0.1:8001`); `PORT` for both. CI (`.github/workflows/docker-publish.yml`) runs `ruff check`, `ruff format --check` and the frontend tests, then publishes to `ghcr.io/netlest/absences3` on pushes to `main` and `v*` tags.
 
 ## Architecture
 

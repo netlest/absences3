@@ -31,25 +31,49 @@ OBJECTS = {
 # Month-split rows, like v_absences returns them.
 ABSENCES = [
     {
-        "id": 1, "object_id": 1, "object_name": "Adam  Zaleski",
-        "group_id": 1, "user_id": 1, "type_id": 4,
-        "abs_date_start": "2026-05-06", "abs_date_end": "2026-05-15",
-        "duration": 10, "description": "Urlop", "color": "#7ec8e3",
-        "type_name": "Urlop", "editable": True,
+        "id": 1,
+        "object_id": 1,
+        "object_name": "Adam  Zaleski",
+        "group_id": 1,
+        "user_id": 1,
+        "type_id": 4,
+        "abs_date_start": "2026-05-06",
+        "abs_date_end": "2026-05-15",
+        "duration": 10,
+        "description": "Urlop",
+        "color": "#7ec8e3",
+        "type_name": "Urlop",
+        "editable": True,
     },
     {
-        "id": 2, "object_id": 5, "object_name": "Wakacje",
-        "group_id": 1, "user_id": 1, "type_id": 8,
-        "abs_date_start": "2026-06-01", "abs_date_end": "2026-06-30",
-        "duration": 30, "description": "Wakacje!", "color": "#9f4800",
-        "type_name": "Wakacje", "editable": True,
+        "id": 2,
+        "object_id": 5,
+        "object_name": "Wakacje",
+        "group_id": 1,
+        "user_id": 1,
+        "type_id": 8,
+        "abs_date_start": "2026-06-01",
+        "abs_date_end": "2026-06-30",
+        "duration": 30,
+        "description": "Wakacje!",
+        "color": "#9f4800",
+        "type_name": "Wakacje",
+        "editable": True,
     },
     {
-        "id": 3, "object_id": 7, "object_name": "Piotr Hamerski",
-        "group_id": 2, "user_id": 1, "type_id": 4,
-        "abs_date_start": "2026-05-20", "abs_date_end": "2026-05-22",
-        "duration": 3, "description": "OOO", "color": "#f6b26b",
-        "type_name": "Urlop", "editable": False,
+        "id": 3,
+        "object_id": 7,
+        "object_name": "Piotr Hamerski",
+        "group_id": 2,
+        "user_id": 1,
+        "type_id": 4,
+        "abs_date_start": "2026-05-20",
+        "abs_date_end": "2026-05-22",
+        "duration": 3,
+        "description": "OOO",
+        "color": "#f6b26b",
+        "type_name": "Urlop",
+        "editable": False,
     },
 ]
 HOLIDAYS = [
@@ -100,7 +124,8 @@ def fake_backend(monkeypatch):
     def fake_absences(token, gid, date_from, date_to):
         _check(token)
         return [
-            a for a in ABSENCES
+            a
+            for a in ABSENCES
             if a["group_id"] == gid
             and _in_range(a["abs_date_start"], date_from, date_to)
         ]
@@ -149,6 +174,7 @@ def fake_backend(monkeypatch):
     monkeypatch.setattr(api_client, "change_password", fake_change_password)
     monkeypatch.setattr(api_client, "login", fake_login)
     monkeypatch.setattr(api_client, "logout", lambda token: _check(token))
+
     def fake_save_prefs(token, prefs):
         _check(token)
         calls["prefs"].append(prefs)
@@ -451,28 +477,40 @@ def test_create_absence_posts_and_redirects(client, fake_backend):
     r = client.post(
         "/absences/new",
         data={
-            "object_id": 1, "type_id": 4,
-            "abs_date_start": "2026-08-10", "abs_date_end": "2026-08-14",
-            "description": "Test", "months": 2, "group": 1,
+            "object_id": 1,
+            "type_id": 4,
+            "abs_date_start": "2026-08-10",
+            "abs_date_end": "2026-08-14",
+            "description": "Test",
+            "months": 2,
+            "group": 1,
         },
         follow_redirects=False,
     )
     assert r.status_code == 303
     assert r.headers["location"] == "/08/2026?months=2&group=1"
-    assert fake_backend["created"] == [{
-        "object_id": 1, "type_id": 4,
-        "abs_date_start": "2026-08-10", "abs_date_end": "2026-08-14",
-        "description": "Test",
-    }]
+    assert fake_backend["created"] == [
+        {
+            "object_id": 1,
+            "type_id": 4,
+            "abs_date_start": "2026-08-10",
+            "abs_date_end": "2026-08-14",
+            "description": "Test",
+        }
+    ]
 
 
 def test_create_absence_validation_error_shows_in_form(client, fake_backend):
     r = client.post(
         "/absences/new",
         data={
-            "object_id": 1, "type_id": 4,
-            "abs_date_start": "2026-08-14", "abs_date_end": "2026-08-10",
-            "description": "", "months": 1, "group": 1,
+            "object_id": 1,
+            "type_id": 4,
+            "abs_date_start": "2026-08-14",
+            "abs_date_end": "2026-08-10",
+            "description": "",
+            "months": 1,
+            "group": 1,
         },
     )
     assert r.status_code == 400
@@ -498,9 +536,13 @@ def test_update_absence_posts_and_redirects(client, fake_backend):
     r = client.post(
         "/absences/1/edit",
         data={
-            "object_id": 1, "type_id": 8,
-            "abs_date_start": "2026-05-07", "abs_date_end": "2026-05-16",
-            "description": "Urlop dłużej", "months": 1, "group": 1,
+            "object_id": 1,
+            "type_id": 8,
+            "abs_date_start": "2026-05-07",
+            "abs_date_end": "2026-05-16",
+            "description": "Urlop dłużej",
+            "months": 1,
+            "group": 1,
         },
         follow_redirects=False,
     )
@@ -554,7 +596,7 @@ def test_add_form_page_prefills_from_query(client):
 def test_calendar_contains_add_modal(client):
     r = client.get("/")
     assert 'id="add-modal"' in r.text
-    assert '/static/calendar.js' in r.text
+    assert "/static/calendar.js" in r.text
     for o in ("Adam  Zaleski", "Kinga Zaleska"):
         assert o in r.text  # modal object select options
 
@@ -647,7 +689,10 @@ def test_debug_session_reports_backend_down(client, monkeypatch):
 def test_view_choices_are_saved_to_the_session(client, fake_backend):
     client.get("/05/2026?months=3&group=2")
     assert fake_backend["prefs"][-1] == {
-        "months": 3, "month": 5, "year": 2026, "group": 2,
+        "months": 3,
+        "month": 5,
+        "year": 2026,
+        "group": 2,
     }
 
 
@@ -665,7 +710,10 @@ def test_explicit_query_overrides_saved_view(client, fake_backend):
     r = client.get("/06/2026?months=1&group=1")
     assert "June 2026" in r.text
     assert fake_backend["prefs"][-1] == {
-        "months": 1, "month": 6, "year": 2026, "group": 1,
+        "months": 1,
+        "month": 6,
+        "year": 2026,
+        "group": 1,
     }
 
 
@@ -673,7 +721,10 @@ def test_saved_group_survives_a_month_only_url(client, fake_backend):
     client.get("/05/2026?months=3&group=2")
     client.get("/07/2026")
     assert fake_backend["prefs"][-1] == {
-        "months": 3, "month": 7, "year": 2026, "group": 2,
+        "months": 3,
+        "month": 7,
+        "year": 2026,
+        "group": 2,
     }
 
 
@@ -684,7 +735,10 @@ def test_empty_prefs_fall_back_to_the_current_month(client, fake_backend):
     r = client.get("/")
     assert f"{today.year}" in r.text
     assert fake_backend["prefs"][-1] == {
-        "months": 1, "month": today.month, "year": today.year, "group": 1,
+        "months": 1,
+        "month": today.month,
+        "year": today.year,
+        "group": 1,
     }
 
 
@@ -692,7 +746,10 @@ def test_prefs_show_up_in_debug_session(client):
     client.get("/05/2026?months=3&group=2")
     body = client.get("/debug/session").json()
     assert body["data"]["prefs"] == {
-        "months": 3, "month": 5, "year": 2026, "group": 2,
+        "months": 3,
+        "month": 5,
+        "year": 2026,
+        "group": 2,
     }
 
 
@@ -703,10 +760,15 @@ def test_adding_absence_returns_to_the_same_span(client, fake_backend):
     r = client.post(
         "/absences/new",
         data={
-            "object_id": 1, "type_id": 4,
-            "abs_date_start": "2026-11-10", "abs_date_end": "2026-11-12",
-            "description": "Listopad", "months": 4, "group": 1,
-            "month": 10, "year": 2026,
+            "object_id": 1,
+            "type_id": 4,
+            "abs_date_start": "2026-11-10",
+            "abs_date_end": "2026-11-12",
+            "description": "Listopad",
+            "months": 4,
+            "group": 1,
+            "month": 10,
+            "year": 2026,
         },
         follow_redirects=False,
     )
@@ -720,26 +782,43 @@ def test_adding_absence_leaves_saved_prefs_alone(client, fake_backend):
     client.post(
         "/absences/new",
         data={
-            "object_id": 1, "type_id": 4,
-            "abs_date_start": "2026-11-10", "abs_date_end": "2026-11-12",
-            "description": "Listopad", "months": 4, "group": 1,
-            "month": 10, "year": 2026,
+            "object_id": 1,
+            "type_id": 4,
+            "abs_date_start": "2026-11-10",
+            "abs_date_end": "2026-11-12",
+            "description": "Listopad",
+            "months": 4,
+            "group": 1,
+            "month": 10,
+            "year": 2026,
         },
         follow_redirects=True,
     )
-    assert fake_backend["prefs"][-1] == before == {
-        "months": 4, "month": 10, "year": 2026, "group": 1,
-    }
+    assert (
+        fake_backend["prefs"][-1]
+        == before
+        == {
+            "months": 4,
+            "month": 10,
+            "year": 2026,
+            "group": 1,
+        }
+    )
 
 
 def test_editing_absence_returns_to_the_same_span(client):
     r = client.post(
         "/absences/1/edit",
         data={
-            "object_id": 1, "type_id": 4,
-            "abs_date_start": "2026-11-10", "abs_date_end": "2026-11-12",
-            "description": "Listopad", "months": 4, "group": 1,
-            "month": 10, "year": 2026,
+            "object_id": 1,
+            "type_id": 4,
+            "abs_date_start": "2026-11-10",
+            "abs_date_end": "2026-11-12",
+            "description": "Listopad",
+            "months": 4,
+            "group": 1,
+            "month": 10,
+            "year": 2026,
         },
         follow_redirects=False,
     )
@@ -750,8 +829,11 @@ def test_deleting_absence_returns_to_the_same_span(client):
     r = client.post(
         "/absences/1/delete",
         data={
-            "months": 4, "group": 1, "abs_date_start": "2026-11-10",
-            "month": 10, "year": 2026,
+            "months": 4,
+            "group": 1,
+            "abs_date_start": "2026-11-10",
+            "month": 10,
+            "year": 2026,
         },
         follow_redirects=False,
     )
@@ -769,9 +851,13 @@ def test_save_without_a_view_still_falls_back_to_the_absence_month(client):
     r = client.post(
         "/absences/new",
         data={
-            "object_id": 1, "type_id": 4,
-            "abs_date_start": "2026-11-10", "abs_date_end": "2026-11-12",
-            "description": "Listopad", "months": 1, "group": 1,
+            "object_id": 1,
+            "type_id": 4,
+            "abs_date_start": "2026-11-10",
+            "abs_date_end": "2026-11-12",
+            "description": "Listopad",
+            "months": 1,
+            "group": 1,
         },
         follow_redirects=False,
     )

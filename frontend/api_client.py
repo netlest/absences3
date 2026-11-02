@@ -219,9 +219,7 @@ def get_manage_absences(
 
     Paginated: {"rows", "total", "page", "per_page", "pages", "years"}.
     """
-    return _get(
-        "/manage/absences", token, year=year, object_id=object_id, page=page
-    )
+    return _get("/manage/absences", token, year=year, object_id=object_id, page=page)
 
 
 def get_holidays_all(token: str) -> list[dict]:
@@ -234,9 +232,7 @@ def get_group_members(token: str, group_id: int) -> list[dict]:
 
 
 def add_group_member(token: str, group_id: int, user_id: int) -> None:
-    _request(
-        "POST", f"/groups/{group_id}/members", token, json={"user_id": user_id}
-    )
+    _request("POST", f"/groups/{group_id}/members", token, json={"user_id": user_id})
 
 
 def remove_group_member(token: str, group_id: int, user_id: int) -> None:
