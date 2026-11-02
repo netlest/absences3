@@ -8,6 +8,9 @@
 #   backend:  DATABASE_URL (required), SESSION_TTL_HOURS (default 48)
 #   frontend: BACKEND_URL (default http://127.0.0.1:8001)
 #   both:     PORT overrides the default listen port
+#
+# Build identity: CI passes GIT_SHA / BUILD_DATE as build args; both apps
+# report them (frontend footer, GET /version). A plain local build says "dev".
 
 FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS builder
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=0
@@ -38,6 +41,10 @@ COPY --chown=app:app docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh
 
 ENV PATH="/app/.venv/bin:$PATH"
+# Declared last so a new commit only rebuilds this metadata-only layer.
+ARG GIT_SHA=dev
+ARG BUILD_DATE=
+ENV APP_VERSION=$GIT_SHA APP_BUILD_DATE=$BUILD_DATE
 USER app
 EXPOSE 8000 8001
 
