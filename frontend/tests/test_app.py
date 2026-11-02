@@ -95,6 +95,10 @@ def _in_range(day: str, date_from, date_to) -> bool:
     return date_from.isoformat() <= day <= date_to.isoformat()
 
 
+# Matches the frontend's default APP_VERSION ("dev") outside Docker.
+BACKEND_VERSION = {"version": "dev", "build_date": ""}
+
+
 @pytest.fixture(autouse=True)
 def fake_backend(monkeypatch):
     # Per-test stand-in for the prefs slot inside sessions.data.
@@ -184,6 +188,7 @@ def fake_backend(monkeypatch):
 
     calls["prefs"] = []
 
+    monkeypatch.setattr(api_client, "get_version", lambda: dict(BACKEND_VERSION))
     monkeypatch.setattr(api_client, "get_me", fake_me)
     monkeypatch.setattr(api_client, "save_prefs", fake_save_prefs)
     monkeypatch.setattr(api_client, "get_groups", fake_groups)
@@ -862,3 +867,51 @@ def test_save_without_a_view_still_falls_back_to_the_absence_month(client):
         follow_redirects=False,
     )
     assert r.headers["location"] == "/11/2026?months=1&group=1"
+
+
+# --- build version ---------------------------------------------------------
+
+SHA = "0d922c1aabbccddeeff00112233445566778899a"
+
+
+@pytest.fixture
+def built_image(monkeypatch):
+    """Run the frontend as if from a CI-built image of commit SHA."""
+    import app as app_module
+
+    monkeypatch.setattr(app_module, "APP_VERSION", SHA)
+    monkeypatch.setattr(app_module, "APP_BUILD_DATE", "2026-11-02T10:15:00.000Z")
+
+
+def test_footer_shows_build_when_backend_matches(client, built_image, monkeypatch):
+    monkeypatch.setattr(api_client, "get_version", lambda: {"version": SHA})
+    r = client.get("/05/2026")
+    assert "build 0d922c1 · 2026-11-02 10:15" in r.text
+    assert "· backend" not in r.text
+
+
+def test_footer_flags_backend_on_other_build(client, built_image, monkeypatch):
+    monkeypatch.setattr(api_client, "get_version", lambda: {"version": "1234567ff"})
+    r = client.get("/05/2026")
+    assert "· backend 1234567" in r.text
+
+
+def test_footer_flags_unreachable_backend_version(client, monkeypatch):
+    def down():
+        raise api_client.ApiError("Not Found")  # backend image without /version
+
+    monkeypatch.setattr(api_client, "get_version", down)
+    r = client.get("/05/2026")
+    assert r.status_code == 200
+    assert "build dev" in r.text
+    assert "· backend unknown" in r.text
+
+
+def test_version_endpoint_needs_no_login(anon, built_image):
+    r = anon.get("/version")
+    assert r.status_code == 200
+    assert r.json() == {
+        "frontend": SHA,
+        "build_date": "2026-11-02T10:15:00.000Z",
+        "backend": "dev",
+    }
