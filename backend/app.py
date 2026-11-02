@@ -26,7 +26,6 @@ from sqlalchemy import delete, func, insert, select, update
 from sqlalchemy.orm import Session
 
 from config import settings
-from security import hash_password, verify_password
 from db import get_db
 from models import (
     Absence,
@@ -39,6 +38,7 @@ from models import (
     VAbsence,
     user_groups,
 )
+from security import hash_password, verify_password
 
 app = FastAPI(title="Absences backend")
 

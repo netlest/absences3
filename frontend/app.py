@@ -577,7 +577,7 @@ def absence_delete(
 # Registered before the /{month}/{year} route below, which would otherwise
 # swallow /manage/* paths.
 
-import manage  # noqa: E402  (needs `templates` above)
+import manage  # imported late: it needs `templates` defined above
 
 app.include_router(manage.router)
 

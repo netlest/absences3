@@ -25,9 +25,8 @@ Colours are taken verbatim from image.py:
 from __future__ import annotations
 
 import calendar
+from collections.abc import Iterable
 from datetime import date
-from typing import Iterable, Optional
-
 
 # --- colours (straight from image.py) --------------------------------------
 COL_BASE = "#c0b0c0"
@@ -57,7 +56,7 @@ def _cw_segments(year: int, month: int, num_days: int) -> list[dict]:
     naturally breaks the segments exactly the way image.py draws its CW boxes.
     """
     segments: list[dict] = []
-    cur: Optional[dict] = None
+    cur: dict | None = None
     for d in range(1, num_days + 1):
         dt = date(year, month, d)
         if dt.weekday() < 5:  # Mon..Fri
@@ -79,9 +78,9 @@ def build_context(
     year: int,
     month: int,
     objects: Iterable[str],
-    absences: Optional[list[dict]] = None,
-    holidays: Optional[dict] = None,
-    today: Optional[date] = None,
+    absences: list[dict] | None = None,
+    holidays: dict | None = None,
+    today: date | None = None,
 ) -> dict:
     """Assemble everything the template needs to draw the month.
 

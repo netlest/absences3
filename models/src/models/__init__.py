@@ -21,17 +21,17 @@ from sqlalchemy import (
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 __all__ = [
-    "Base",
-    "User",
-    "Group",
-    "Object",
-    "AbsenceType",
     "Absence",
+    "AbsenceType",
+    "Base",
+    "Group",
     "Holiday",
-    "VAbsence",
+    "Object",
+    "User",
     "UserSession",
-    "user_groups",
+    "VAbsence",
     "create_all",
+    "user_groups",
 ]
 
 
@@ -144,7 +144,7 @@ class VAbsence(Base):
     """
 
     __tablename__ = "v_absences"
-    __table_args__ = {"info": {"is_view": True}}
+    __table_args__ = {"info": {"is_view": True}}  # noqa: RUF012 (SQLAlchemy reads it as-is)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     abs_date_start: Mapped[date] = mapped_column(Date, primary_key=True)
