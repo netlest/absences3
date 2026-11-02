@@ -1,18 +1,20 @@
 # Absences calendar
 
 A [uv workspace](https://docs.astral.sh/uv/concepts/projects/workspaces/) with
-two packages:
+three packages:
 
 - **`frontend/`** — FastAPI + Jinja2 app that renders the monthly absence
-  calendar as an HTML/CSS grid instead of the static PNG produced by
-  `app/image.py`. The grid layout, colours and proportions match the original
-  image; the page around it (top navbar with month controls) is styled with
-  Tailwind CSS (Play CDN).
-- **`backend/`** — minimal FastAPI API (FastAPI + SQLAlchemy), the starting
-  point for serving real absence data.
+  calendar as an HTML/CSS grid, replacing the static PNG the legacy app's
+  `image.py` produced. The grid layout, colours and proportions match the
+  original image. The page around it (navbar, forms, the `/manage` admin page)
+  uses Tailwind CSS (Play CDN) and htmx. It holds no data itself: every page
+  calls the backend API.
+- **`backend/`** — JSON API (FastAPI + SQLAlchemy) on PostgreSQL: session
+  login, group-scoped absence data, absence create/edit/delete, and admin CRUD
+  for users, groups, objects, absence types and holidays.
 - **`models/`** — shared SQLAlchemy 2.0 models (users, groups, objects,
-  absence types, absences, user_groups, holidays); the backend depends on it
-  as a workspace package.
+  absence types, absences, the `v_absences` view, sessions, user_groups,
+  holidays). The backend depends on it as a workspace package.
 
 ## Local development database
 
@@ -56,9 +58,13 @@ uv run --directory frontend uvicorn app:app --reload --port 8000
 uv run --directory backend  uvicorn app:app --reload --port 8001
 ```
 
-Open http://127.0.0.1:8000/ (calendar) and http://127.0.0.1:8001/ (API health).
+Open http://127.0.0.1:8000/ and log in (`admin` / `admin` after seeding).
+http://127.0.0.1:8001/ reports API status, and http://127.0.0.1:8001/health/db
+checks the database connection. The frontend reaches the backend at
+`BACKEND_URL` (default `http://127.0.0.1:8001`).
 
-Run the frontend tests:
+Run the frontend tests. They need no database or backend, because the
+backend API is stubbed by monkeypatching `api_client`:
 
 ```bash
 uv run --directory frontend pytest
@@ -66,22 +72,18 @@ uv run --directory frontend pytest
 
 (Optional: `uv sync --all-packages --group dev` pre-installs everything.)
 
-### Fallback: plain pip
-
-```bash
-cd frontend
-pip install -r requirements.txt
-uvicorn app:app --reload
-```
-
 ## Frontend URLs
 
-| URL                          | Shows                       |
-|------------------------------|-----------------------------|
-| `/`                          | last view, else this month  |
-| `/05/2026`                   | May 2026 (`/{month}/{year}`)|
-| `/09/2026`                   | September 2026              |
-| `/debug/session`             | your own session as JSON    |
+| URL                          | Shows                                   |
+|------------------------------|-----------------------------------------|
+| `/login`                     | login form (every other page needs it)  |
+| `/`                          | last view, else this month              |
+| `/05/2026`                   | May 2026 (`/{month}/{year}`)            |
+| `/05/2026?months=3&group=2`  | May–July 2026, group 2 only             |
+| `/absences/new`              | add an absence                          |
+| `/manage`                    | CRUD for all entities (admin tabs)      |
+| `/password`                  | change your password                    |
+| `/debug/session`             | your own session as JSON                |
 
 `/` with no query parameters resumes the last view — month, year, month
 count and group are written into `sessions.data` on every navigation
@@ -89,19 +91,57 @@ count and group are written into `sessions.data` on every navigation
 with the session: logout deletes the row, so a fresh login starts on the
 current month again.
 
+## Docker
+
+One image (`Dockerfile`) serves both apps. The container argument picks which
+app runs:
+
+```bash
+docker run -e DATABASE_URL=... ghcr.io/netlest/absences3 backend    # API on :8001
+docker run -e BACKEND_URL=...  ghcr.io/netlest/absences3 frontend   # UI  on :8000
+```
+
+Configuration is environment-only:
+
+- backend: `DATABASE_URL` (required), `SESSION_TTL_HOURS` (default 48)
+- frontend: `BACKEND_URL`
+- both: `PORT`
+
+The GitHub Actions workflow runs the frontend tests, then publishes the image
+to GHCR on pushes to `main` and `v*` tags.
+
 ## Files
 
 - `pyproject.toml` — uv workspace root (members: `frontend`, `backend`,
-  `models`); the shared `uv.lock` lives next to it.
-- `frontend/app.py` — routes (`/` and `/{month}/{year}`) and prev/next navigation.
-- `frontend/calendar_grid.py` — pure function `build_context(year, month, objects, absences, holidays)` that computes the grid (CW week bars, weekend shading, day numbers, holidays, absence blocks, current-day/month highlights). No framework dependencies, easy to unit-test.
-- `frontend/templates/calendar.html` — the CSS-grid template with the Tailwind navbar. Fira Code is loaded from Google Fonts with a monospace fallback.
-- `frontend/sample_data.py` — stand-in data (the 7 example rows + a few sample absences/holidays). Swap `get_month_data()` for your SQLAlchemy queries to wire it into the real `absences` app.
-- `frontend/tests/test_app.py` — smoke tests (routes render, CW bars, 30-day pad, holidays, 404 on bad month).
+  `models`). The shared `uv.lock` lives next to it.
+- `sql_ddl/schema.sql`, `sql_ddl/v_absences.sql` — the PostgreSQL schema and
+  the `v_absences` view, which splits multi-month absences into one row per
+  month. They are applied by hand: the apps never create or migrate tables.
+- `models/src/models/__init__.py` — declarative models mirroring the DDL,
+  importable as `from models import User, Absence, VAbsence, ...`.
+- `backend/app.py` — the whole API. Login issues an opaque bearer token stored
+  in the `sessions` table. Non-admins only see the groups they belong to.
+  Absence and object writes are owner-or-admin; the rest of the CRUD is
+  admin-only.
+- `backend/security.py` — scrypt password hashing in Werkzeug's format, so the
+  hashes stay compatible with the original Flask app.
+- `backend/config.py` — settings from the environment or `backend/.env`.
 - `backend/seed_dev.py` — one-shot development seed (admin login, sample
-  group/objects/absences/holidays); refuses to run twice.
-- `backend/app.py` — minimal FastAPI app; `/` reports service status and the installed SQLAlchemy version.
-- `models/src/models/__init__.py` — declarative models (`DeclarativeBase`/`Mapped`/`mapped_column`) mirroring the PostgreSQL DDL, importable as `from models import User, Absence, ...`.
+  group/objects/absences/holidays). It refuses to run twice.
+- `frontend/app.py` — login/logout, password change, absence forms and the
+  calendar routes (`/` and `/{month}/{year}`) with prev/next navigation.
+- `frontend/api_client.py` — the HTTP client for the backend. It sends the
+  session cookie's token as a Bearer header and turns 401/422/4xx responses
+  into exceptions.
+- `frontend/calendar_grid.py` — pure function `build_context(...)` that
+  computes the grid (CW week bars, weekend shading, day numbers, holidays,
+  absence blocks, current-day/month highlights). It has no framework
+  dependencies and accepts `today=` to freeze "today" in tests.
+- `frontend/manage.py`, `frontend/manage_entities.py` — the `/manage` page.
+  Each entity is declared once (table columns and form fields), and one
+  generic htmx router renders them all.
+- `frontend/templates/`, `frontend/static/` — Jinja2 templates and page JS.
+- `frontend/tests/` — route and `/manage` tests against a stubbed backend.
 
 ## Calendar layout (mirrors `image.py`)
 
@@ -112,19 +152,3 @@ current month again.
 - Months shorter than 31 days get the dark padding column(s) (`#605060`) on the right.
 - The current month gets a 2px white frame; the current day a 2px white outline.
 - Grid lines are painted by a 1px gap over a `#808080` background.
-
-## Wiring into the real app
-
-Replace `sample_data.get_month_data()` with queries against your `Object`,
-`VAbsence` and `Holiday` models, returning:
-
-```python
-objects  = ["Adam Zaleski", ...]                     # ordered row labels
-absences = [{"object": "Adam Zaleski", "day": 6,
-             "duration": 5, "color": "#7ec8e3",
-             "caption": "Urlop"}, ...]
-holidays = {1: "Swieto Pracy", ...}                  # day -> description
-```
-
-`build_context()` also accepts a `today=` argument if you need to freeze "today"
-for tests.
