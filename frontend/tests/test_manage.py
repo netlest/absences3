@@ -21,14 +21,22 @@ GROUPS = [
 ]
 OBJECTS = [
     {
-        "id": 1, "name": "Adam Zaleski", "description": "Adam",
-        "group_id": 1, "group_name": "Default",
-        "user_id": 1, "owner_name": "admin",
+        "id": 1,
+        "name": "Adam Zaleski",
+        "description": "Adam",
+        "group_id": 1,
+        "group_name": "Default",
+        "user_id": 1,
+        "owner_name": "admin",
     },
     {
-        "id": 2, "name": "Kinga Zaleska", "description": "Kinga",
-        "group_id": 1, "group_name": "Default",
-        "user_id": 2, "owner_name": "kinga",
+        "id": 2,
+        "name": "Kinga Zaleska",
+        "description": "Kinga",
+        "group_id": 1,
+        "group_name": "Default",
+        "user_id": 2,
+        "owner_name": "kinga",
     },
 ]
 USERS = [
@@ -41,21 +49,32 @@ TYPES = [
 ]
 HOLIDAYS_RAW = [
     {
-        "id": 1, "country": "pl", "event_date": "2026-05-01",
-        "description": "Święto Pracy", "recurring": True,
+        "id": 1,
+        "country": "pl",
+        "event_date": "2026-05-01",
+        "description": "Święto Pracy",
+        "recurring": True,
     },
 ]
 MANAGE_ABSENCES = [
     {
-        "id": 7, "object_id": 1, "object_name": "Adam Zaleski",
-        "type_id": 4, "type_name": "Urlop",
-        "abs_date_start": "2026-05-06", "abs_date_end": "2026-05-15",
+        "id": 7,
+        "object_id": 1,
+        "object_name": "Adam Zaleski",
+        "type_id": 4,
+        "type_name": "Urlop",
+        "abs_date_start": "2026-05-06",
+        "abs_date_end": "2026-05-15",
         "description": "Urlop",
     },
     {
-        "id": 8, "object_id": 2, "object_name": "Kinga Zaleska",
-        "type_id": 8, "type_name": "Wakacje",
-        "abs_date_start": "2025-07-01", "abs_date_end": "2025-07-10",
+        "id": 8,
+        "object_id": 2,
+        "object_name": "Kinga Zaleska",
+        "type_id": 8,
+        "type_name": "Wakacje",
+        "abs_date_start": "2025-07-01",
+        "abs_date_end": "2025-07-10",
         "description": "Lato",
     },
 ]
@@ -114,19 +133,25 @@ def fake_backend(monkeypatch, calls, me):
     monkeypatch.setattr(
         api_client, "get_editable_objects", lambda t: (_check(t), OBJECTS)[1]
     )
+
     def fake_manage_absences(token, year=None, object_id=None, page=None):
         # Paginates with one row per page so pager rendering is testable.
         _check(token)
         rows = [
-            a for a in MANAGE_ABSENCES
+            a
+            for a in MANAGE_ABSENCES
             if (year is None or a["abs_date_start"].startswith(str(year)))
             and (object_id is None or a["object_id"] == object_id)
         ]
         pages = max(1, len(rows))
         p = min(page or 1, pages)
         return {
-            "rows": rows[p - 1 : p], "total": len(rows), "page": p,
-            "per_page": 1, "pages": pages, "years": [2026, 2025],
+            "rows": rows[p - 1 : p],
+            "total": len(rows),
+            "page": p,
+            "per_page": 1,
+            "pages": pages,
+            "years": [2026, 2025],
         }
 
     monkeypatch.setattr(api_client, "get_manage_absences", fake_manage_absences)
@@ -150,7 +175,9 @@ def fake_backend(monkeypatch, calls, me):
     monkeypatch.setattr(api_client, "add_group_member", fake_add_member)
     monkeypatch.setattr(api_client, "remove_group_member", fake_remove_member)
 
-    monkeypatch.setattr(api_client, "objects", _fake_resource(OBJECTS, calls, "objects"))
+    monkeypatch.setattr(
+        api_client, "objects", _fake_resource(OBJECTS, calls, "objects")
+    )
     monkeypatch.setattr(api_client, "users", _fake_resource(USERS, calls, "users"))
     monkeypatch.setattr(
         api_client, "groups_admin", _fake_resource(GROUPS, calls, "groups")
@@ -196,8 +223,15 @@ def test_manage_htmx_expired_session_gets_hx_redirect(anon):
 def test_admin_sees_all_tabs(client):
     r = client.get("/manage")
     assert r.status_code == 200
-    for label in ["Objects", "Absences", "Absence types", "Groups",
-                  "Group members", "Users", "Public holidays"]:
+    for label in [
+        "Objects",
+        "Absences",
+        "Absence types",
+        "Groups",
+        "Group members",
+        "Users",
+        "Public holidays",
+    ]:
         assert label in r.text
 
 

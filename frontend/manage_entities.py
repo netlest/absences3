@@ -67,12 +67,19 @@ ENTITIES: dict[str, Entity] = {
                 FormField("name", "Name", maxlength=30),
                 FormField("description", "Description", maxlength=255),
                 FormField(
-                    "group_id", "Group", widget="select", coerce="int",
+                    "group_id",
+                    "Group",
+                    widget="select",
+                    coerce="int",
                     options="groups",
                 ),
                 FormField(
-                    "user_id", "Owner", widget="select", coerce="int",
-                    options="users", admin_only=True,
+                    "user_id",
+                    "Owner",
+                    widget="select",
+                    coerce="int",
+                    options="users",
+                    admin_only=True,
                 ),
             ),
             delete_confirm=(
@@ -93,17 +100,26 @@ ENTITIES: dict[str, Entity] = {
             ),
             fields=(
                 FormField(
-                    "object_id", "Who / what", widget="select", coerce="int",
+                    "object_id",
+                    "Who / what",
+                    widget="select",
+                    coerce="int",
                     options="objects",
                 ),
                 FormField(
-                    "type_id", "Type of absence", widget="select", coerce="int",
+                    "type_id",
+                    "Type of absence",
+                    widget="select",
+                    coerce="int",
                     options="types",
                 ),
                 FormField("abs_date_start", "From", widget="date"),
                 FormField("abs_date_end", "To", widget="date"),
                 FormField(
-                    "description", "Description", required=False, maxlength=150,
+                    "description",
+                    "Description",
+                    required=False,
+                    maxlength=150,
                 ),
             ),
             delete_confirm="Delete this absence?",
@@ -140,8 +156,7 @@ ENTITIES: dict[str, Entity] = {
                 FormField("description", "Description", maxlength=255),
             ),
             delete_confirm=(
-                "Delete this group? Its objects and their absences will be "
-                "deleted too."
+                "Delete this group? Its objects and their absences will be deleted too."
             ),
         ),
         Entity(
@@ -155,22 +170,29 @@ ENTITIES: dict[str, Entity] = {
             ),
             fields=(
                 FormField(
-                    "username", "Username", maxlength=30,
+                    "username",
+                    "Username",
+                    maxlength=30,
                     pattern=r"[A-Za-z0-9_. -]+",
                 ),
                 FormField(
-                    "password", "Password", widget="password", maxlength=128,
+                    "password",
+                    "Password",
+                    widget="password",
+                    maxlength=128,
                     optional_on_edit=True,
                     help="At least 6 characters. When editing, leave blank to keep the current password.",
                 ),
                 FormField(
-                    "admin", "Administrator", widget="checkbox", coerce="bool",
+                    "admin",
+                    "Administrator",
+                    widget="checkbox",
+                    coerce="bool",
                     required=False,
                 ),
             ),
             delete_confirm=(
-                "Delete this user? Their objects and absences will be deleted "
-                "too."
+                "Delete this user? Their objects and absences will be deleted too."
             ),
         ),
         Entity(
@@ -187,15 +209,24 @@ ENTITIES: dict[str, Entity] = {
             fields=(
                 FormField("event_date", "Date", widget="date"),
                 FormField(
-                    "description", "Description", required=False, maxlength=150,
+                    "description",
+                    "Description",
+                    required=False,
+                    maxlength=150,
                 ),
                 FormField(
-                    "country", "Country code", maxlength=4,
-                    pattern="[A-Za-z]{2,4}", placeholder="pl",
+                    "country",
+                    "Country code",
+                    maxlength=4,
+                    pattern="[A-Za-z]{2,4}",
+                    placeholder="pl",
                 ),
                 FormField(
-                    "recurring", "Repeats every year", widget="checkbox",
-                    coerce="bool", required=False,
+                    "recurring",
+                    "Repeats every year",
+                    widget="checkbox",
+                    coerce="bool",
+                    required=False,
                 ),
             ),
             delete_confirm="Delete this holiday?",

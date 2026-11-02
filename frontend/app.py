@@ -92,9 +92,7 @@ def _month_absences(
 def _month_holidays(holidays: list[dict], year: int, month: int) -> dict[int, str]:
     key = f"{year:04d}-{month:02d}"
     return {
-        int(h["date"][8:10]): h["description"]
-        for h in holidays
-        if h["date"][:7] == key
+        int(h["date"][8:10]): h["description"] for h in holidays if h["date"][:7] == key
     }
 
 
@@ -208,9 +206,7 @@ def _render(
         "groups": groups,
         "absence_types": absence_types,
         # Modal object choices: editable objects within the shown group.
-        "editable_objects": [
-            o for o in group_objects if o["id"] in editable_ids
-        ],
+        "editable_objects": [o for o in group_objects if o["id"] in editable_ids],
         "username": me["username"],
         "year_options": year_options,
         "prev_url": f"/{pm:02d}/{py}?months={months}&group={group}",
@@ -289,7 +285,9 @@ def password_submit(
 
     def _form(error: str | None, done: bool = False, status_code: int = 200):
         return templates.TemplateResponse(
-            request, "password.html", {"error": error, "done": done},
+            request,
+            "password.html",
+            {"error": error, "done": done},
             status_code=status_code,
         )
 
@@ -412,9 +410,15 @@ def absence_new(
         prefill["abs_date_start"] = date.isoformat()
         prefill["abs_date_end"] = date.isoformat()
     return _absence_form(
-        request, token, absence=None, error=None,
-        months=months, group=group, form=prefill or None,
-        month=month, year=year,
+        request,
+        token,
+        absence=None,
+        error=None,
+        months=months,
+        group=group,
+        form=prefill or None,
+        month=month,
+        year=year,
     )
 
 
@@ -447,9 +451,16 @@ def absence_create(
         return _login_redirect()
     except api_client.ApiError as exc:
         return _absence_form(
-            request, token, absence=None, error=str(exc),
-            months=months, group=group, form=payload, status_code=400,
-            month=month, year=year,
+            request,
+            token,
+            absence=None,
+            error=str(exc),
+            months=months,
+            group=group,
+            form=payload,
+            status_code=400,
+            month=month,
+            year=year,
         )
     except api_client.BackendUnavailable as exc:
         raise HTTPException(status_code=503, detail=f"Backend unavailable: {exc}")
@@ -501,8 +512,14 @@ def absence_edit(
     if not absence["editable"]:
         raise HTTPException(status_code=403, detail="Not your absence")
     return _absence_form(
-        request, token, absence=absence, error=None, months=months, group=group,
-        month=month, year=year,
+        request,
+        token,
+        absence=absence,
+        error=None,
+        months=months,
+        group=group,
+        month=month,
+        year=year,
     )
 
 
@@ -536,9 +553,16 @@ def absence_update(
         return _login_redirect()
     except api_client.ApiError as exc:
         return _absence_form(
-            request, token, absence={"id": absence_id, **payload},
-            error=str(exc), months=months, group=group, form=payload,
-            status_code=400, month=month, year=year,
+            request,
+            token,
+            absence={"id": absence_id, **payload},
+            error=str(exc),
+            months=months,
+            group=group,
+            form=payload,
+            status_code=400,
+            month=month,
+            year=year,
         )
     except api_client.BackendUnavailable as exc:
         raise HTTPException(status_code=503, detail=f"Backend unavailable: {exc}")

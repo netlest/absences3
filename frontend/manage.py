@@ -88,9 +88,7 @@ def _load(
             page=query.get("page"),
         )
         # Active filters (without page): reused by the pager links.
-        filters = {
-            k: query[k] for k in ("year", "object_id") if query.get(k)
-        }
+        filters = {k: query[k] for k in ("year", "object_id") if query.get(k)}
         params = dict(filters)
         if data["page"] > 1:
             params["page"] = data["page"]
@@ -212,8 +210,10 @@ def _render_area(
 
     if key == "members":
         groups = api_client.get_groups(token)
-        selected = group_id if group_id in {g["id"] for g in groups} else (
-            groups[0]["id"] if groups else None
+        selected = (
+            group_id
+            if group_id in {g["id"] for g in groups}
+            else (groups[0]["id"] if groups else None)
         )
         members = (
             api_client.get_group_members(token, selected)
@@ -282,7 +282,7 @@ def members_panel(request: Request, group_id: int | None = None):
 
 @router.post("/manage/members/add")
 async def members_add(request: Request):
-    form = await (request.form())
+    form = await request.form()
 
     def run(token: str) -> Response:
         me = _me(token)
@@ -305,7 +305,7 @@ async def members_add(request: Request):
 
 @router.post("/manage/members/{user_id}/remove")
 async def members_remove(request: Request, user_id: int):
-    form = await (request.form())
+    form = await request.form()
 
     def run(token: str) -> Response:
         me = _me(token)
@@ -352,7 +352,11 @@ def form_new(request: Request, key: str):
     return _guarded(
         request,
         lambda token: _render_area(
-            request, token, _me(token), key, form_mode="new",
+            request,
+            token,
+            _me(token),
+            key,
+            form_mode="new",
             query=_list_query(request),
         ),
     )
@@ -363,7 +367,12 @@ def form_edit(request: Request, key: str, item_id: int):
     return _guarded(
         request,
         lambda token: _render_area(
-            request, token, _me(token), key, form_mode="edit", item_id=item_id,
+            request,
+            token,
+            _me(token),
+            key,
+            form_mode="edit",
+            item_id=item_id,
             query=_list_query(request),
         ),
     )
@@ -392,10 +401,16 @@ def _save(request: Request, key: str, form, token: str, item_id: int | None):
     query = _list_query(request)
     if errors or form_error:
         return _render_area(
-            request, token, me, key,
+            request,
+            token,
+            me,
+            key,
             form_mode="edit" if editing else "new",
-            item_id=item_id, values=dict(form), errors=errors,
-            form_error=form_error, query=query,
+            item_id=item_id,
+            values=dict(form),
+            errors=errors,
+            form_error=form_error,
+            query=query,
         )
     if not request.headers.get("HX-Request"):
         qs = f"&{urlencode(query)}" if query else ""
@@ -429,8 +444,6 @@ def delete(request: Request, key: str, item_id: int):
         if not request.headers.get("HX-Request") and not form_error:
             qs = f"&{urlencode(query)}" if query else ""
             return RedirectResponse(f"/manage?tab={key}{qs}", status_code=303)
-        return _render_area(
-            request, token, me, key, form_error=form_error, query=query
-        )
+        return _render_area(request, token, me, key, form_error=form_error, query=query)
 
     return _guarded(request, run)

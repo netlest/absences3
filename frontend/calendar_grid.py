@@ -106,7 +106,7 @@ def build_context(
     today = today or date.today()
 
     num_days = calendar.monthrange(year, month)[1]
-    is_current_month = (month == today.month and year == today.year)
+    is_current_month = month == today.month and year == today.year
     current_day = today.day if is_current_month else None
 
     def is_weekend(d: int) -> bool:
@@ -121,20 +121,38 @@ def build_context(
         col = d + 1  # grid column line (col 1 is the label column)
         if d > num_days:
             cw_cells.append(
-                {"kind": "pad", "col_start": col, "col_end": col + 1,
-                 "text": "", "color": COL_PAD, "title": ""}
+                {
+                    "kind": "pad",
+                    "col_start": col,
+                    "col_end": col + 1,
+                    "text": "",
+                    "color": COL_PAD,
+                    "title": "",
+                }
             )
         elif is_weekend(d):
             cw_cells.append(
-                {"kind": "weekend", "col_start": col, "col_end": col + 1,
-                 "text": "", "color": COL_WEEKEND, "title": ""}
+                {
+                    "kind": "weekend",
+                    "col_start": col,
+                    "col_end": col + 1,
+                    "text": "",
+                    "color": COL_WEEKEND,
+                    "title": "",
+                }
             )
         elif d in seg_start:
             s = seg_start[d]
             label = f"CW {s['week']}" if s["span"] >= 2 else ""
             cw_cells.append(
-                {"kind": "cw", "col_start": d + 1, "col_end": s["end"] + 2,
-                 "text": label, "color": COL_CW, "title": label}
+                {
+                    "kind": "cw",
+                    "col_start": d + 1,
+                    "col_end": s["end"] + 2,
+                    "text": label,
+                    "color": COL_CW,
+                    "title": label,
+                }
             )
         # else: a week-day covered by a segment that already started -> skip
 
@@ -154,8 +172,13 @@ def build_context(
             else:
                 color = COL_BASE
             day_cells.append(
-                {"kind": "day", "col": col, "text": str(d), "color": color,
-                 "title": holidays.get(d, "")}
+                {
+                    "kind": "day",
+                    "col": col,
+                    "text": str(d),
+                    "color": color,
+                    "title": holidays.get(d, ""),
+                }
             )
 
     # ---- Rows 3.. : object rows with absences ---------------------------
@@ -176,8 +199,14 @@ def build_context(
                 continue
             if d > num_days:
                 cells.append(
-                    {"kind": "pad", "col_start": col, "col_end": col + 1,
-                     "text": "", "color": COL_PAD, "title": ""}
+                    {
+                        "kind": "pad",
+                        "col_start": col,
+                        "col_end": col + 1,
+                        "text": "",
+                        "color": COL_PAD,
+                        "title": "",
+                    }
                 )
             elif d in by_day:
                 a = by_day[d]
@@ -185,15 +214,27 @@ def build_context(
                 end_day = min(d + dur - 1, num_days)
                 caption = _truncate(a.get("caption", ""), max(1, (end_day - d + 1) * 3))
                 cells.append(
-                    {"kind": "abs", "col_start": col, "col_end": end_day + 2,
-                     "text": caption, "color": a.get("color", COL_BASE),
-                     "title": a.get("caption", ""), "href": a.get("href")}
+                    {
+                        "kind": "abs",
+                        "col_start": col,
+                        "col_end": end_day + 2,
+                        "text": caption,
+                        "color": a.get("color", COL_BASE),
+                        "title": a.get("caption", ""),
+                        "href": a.get("href"),
+                    }
                 )
                 covered_until = end_day
             else:
                 color = COL_WEEKEND if is_weekend(d) else COL_BASE
-                cell = {"kind": "day", "col_start": col, "col_end": col + 1,
-                        "text": "", "color": color, "title": ""}
+                cell = {
+                    "kind": "day",
+                    "col_start": col,
+                    "col_end": col + 1,
+                    "text": "",
+                    "color": color,
+                    "title": "",
+                }
                 if add_base:
                     day_iso = date(year, month, d).isoformat()
                     cell["href"] = f"{add_base}&date={day_iso}"
