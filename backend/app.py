@@ -196,6 +196,12 @@ def root() -> dict:
     }
 
 
+@app.get("/version")
+def version() -> dict:
+    """Git commit and build time of the running image ("dev" outside Docker)."""
+    return {"version": settings.app_version, "build_date": settings.app_build_date}
+
+
 @app.get("/health/db")
 def health_db(db: Session = Depends(get_db)) -> dict:
     return {
