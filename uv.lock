@@ -9,6 +9,9 @@ members = [
     "models",
 ]
 
+[manifest.dependency-groups]
+dev = [{ name = "ruff", specifier = ">=0.17.3" }]
+
 [[package]]
 name = "annotated-doc"
 version = "0.0.4"
@@ -50,7 +53,6 @@ dependencies = [
     { name = "models" },
     { name = "psycopg", extra = ["binary"] },
     { name = "pydantic-settings" },
-    { name = "ruff" },
     { name = "sqlalchemy" },
     { name = "uvicorn", extra = ["standard"] },
 ]
@@ -61,7 +63,6 @@ requires-dist = [
     { name = "models", editable = "models" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.1" },
     { name = "pydantic-settings", specifier = ">=2.0" },
-    { name = "ruff", specifier = ">=0.17.3" },
     { name = "sqlalchemy", specifier = ">=2.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.29" },
 ]
@@ -133,7 +134,6 @@ dependencies = [
     { name = "httpx" },
     { name = "jinja2" },
     { name = "python-multipart" },
-    { name = "ruff" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 
@@ -149,7 +149,6 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "jinja2", specifier = ">=3.1" },
     { name = "python-multipart", specifier = ">=0.0.32" },
-    { name = "ruff", specifier = ">=0.17.3" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.29" },
 ]
 
@@ -481,15 +480,11 @@ name = "models"
 version = "0.1.0"
 source = { editable = "models" }
 dependencies = [
-    { name = "ruff" },
     { name = "sqlalchemy" },
 ]
 
 [package.metadata]
-requires-dist = [
-    { name = "ruff", specifier = ">=0.17.3" },
-    { name = "sqlalchemy", specifier = ">=2.0" },
-]
+requires-dist = [{ name = "sqlalchemy", specifier = ">=2.0" }]
 
 [[package]]
 name = "packaging"

@@ -1,2 +1,29 @@
 [tool.uv.workspace]
 members = ["frontend", "backend", "models"]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.17.3",
+]
+
+# Ruff (linter + formatter) for the whole workspace; run from the repo root:
+#   uv run ruff check .          # lint
+#   uv run ruff format .         # format (CI-style check: --check)
+[tool.ruff]
+# Lowest Python supported by the workspace members (requires-python >=3.10).
+target-version = "py310"
+# Lets isort classify workspace modules (api_client, models, ...) as first-party.
+src = ["backend", "frontend", "models/src"]
+
+[tool.ruff.lint]
+# Ruff defaults (E4, E7, E9, F) plus:
+#   UP045 — write `X | None` instead of `Optional[X]` (PEP 604).
+extend-select = ["UP045"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI dependency/parameter markers are meant to be called in defaults (B008).
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Form",
+    "fastapi.Query",
+]
