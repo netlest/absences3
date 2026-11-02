@@ -83,6 +83,11 @@ def _get(path: str, token: str | None = None, **params):
     return _request("GET", path, token, params=params)
 
 
+def get_version() -> dict:
+    """The backend's build identity: {"version": <git sha | "dev">, "build_date": ...}."""
+    return _get("/version")
+
+
 # --- auth --------------------------------------------------------------------
 
 

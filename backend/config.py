@@ -17,6 +17,9 @@ class Settings(BaseSettings):
 
     database_url: str
     session_ttl_hours: int = 48
+    # Build identity, baked into the Docker image (see Dockerfile).
+    app_version: str = "dev"
+    app_build_date: str = ""
 
 
 settings = Settings()

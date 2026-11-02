@@ -102,6 +102,7 @@ before the tests, so run them before pushing.
 | `/manage`                    | CRUD for all entities (admin tabs)      |
 | `/password`                  | change your password                    |
 | `/debug/session`             | your own session as JSON                |
+| `/version`                   | frontend + backend build (no login)     |
 
 `/` with no query parameters resumes the last view — month, year, month
 count and group are written into `sessions.data` on every navigation
@@ -128,6 +129,17 @@ Configuration is environment-only:
 The GitHub Actions workflow runs `ruff check`, `ruff format --check` and the
 frontend tests, then publishes the image
 to GHCR on pushes to `main` and `v*` tags.
+
+### Which build is running?
+
+CI bakes the commit SHA and build time into the image (`GIT_SHA` /
+`BUILD_DATE` build args → `APP_VERSION` / `APP_BUILD_DATE` env vars). The
+calendar footer shows `build <short sha> · <build time>`; if the backend
+container runs a different build (or can't report one), the footer adds a
+red `· backend <sha>`. The same data is available as JSON at the frontend's
+`/version` and the backend's `GET /version`. Outside Docker, or for a local
+`docker build` without `--build-arg GIT_SHA=$(git rev-parse HEAD)`, the
+version is `dev`.
 
 ## Files
 

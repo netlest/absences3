@@ -42,6 +42,10 @@ SESSION_COOKIE = "session"
 # just bounce the user to /login).
 SESSION_TTL_HOURS = int(os.environ.get("SESSION_TTL_HOURS", "48"))
 COOKIE_MAX_AGE = SESSION_TTL_HOURS * 3600
+# Build identity, baked into the Docker image by CI (see Dockerfile);
+# "dev" when running from a checkout.
+APP_VERSION = os.environ.get("APP_VERSION", "dev")
+APP_BUILD_DATE = os.environ.get("APP_BUILD_DATE", "")
 
 app = FastAPI(title="Absences calendar (CSS grid)")
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
@@ -94,6 +98,19 @@ def _month_holidays(holidays: list[dict], year: int, month: int) -> dict[int, st
     return {
         int(h["date"][8:10]): h["description"] for h in holidays if h["date"][:7] == key
     }
+
+
+def _versions() -> dict:
+    """Build identity of this frontend and of the backend it talks to.
+
+    `backend` is None when the backend can't say (unreachable, or an older
+    image without /version) — the footer flags that like a mismatch.
+    """
+    try:
+        backend = api_client.get_version().get("version")
+    except (api_client.BackendUnavailable, api_client.ApiError):
+        backend = None
+    return {"frontend": APP_VERSION, "build_date": APP_BUILD_DATE, "backend": backend}
 
 
 def _login_redirect() -> RedirectResponse:
@@ -212,6 +229,7 @@ def _render(
         "prev_url": f"/{pm:02d}/{py}?months={months}&group={group}",
         "next_url": f"/{nm:02d}/{ny}?months={months}&group={group}",
         "add_url": f"/absences/new?month={month}&year={year}&months={months}&group={group}",
+        "build": _versions(),
     }
     # Starlette's current signature: request first, then template name, then context.
     return templates.TemplateResponse(request, "calendar.html", context)
@@ -607,6 +625,12 @@ app.include_router(manage.router)
 
 
 # --- calendar routes ----------------------------------------------------------
+
+
+@app.get("/version")
+def version() -> JSONResponse:
+    """Build identity of the frontend and backend images, no login needed."""
+    return JSONResponse(_versions())
 
 
 @app.get("/debug/session")

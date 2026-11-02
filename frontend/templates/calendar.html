@@ -352,5 +352,14 @@
     {% endfor %}
   </main>
 
+  {# Build identity: which image is running. Red when the backend differs. #}
+  <footer class="mt-auto px-4 py-2 text-xs text-gray-600 text-right"
+          title="frontend {{ build.frontend }} / backend {{ build.backend or 'unknown' }}">
+    build {{ build.frontend[:7] }}{% if build.build_date %} · {{ build.build_date[:16] | replace('T', ' ') }}{% endif %}
+    {% if build.backend != build.frontend %}
+    <span class="text-red-700">· backend {{ (build.backend or 'unknown')[:7] }}</span>
+    {% endif %}
+  </footer>
+
 </body>
 </html>
