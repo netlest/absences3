@@ -70,7 +70,25 @@ backend API is stubbed by monkeypatching `api_client`:
 uv run --directory frontend pytest
 ```
 
-(Optional: `uv sync --all-packages --group dev` pre-installs everything.)
+(Optional: `uv sync --all-packages` pre-installs everything, dev tools included.)
+
+## Linting and formatting (ruff)
+
+[Ruff](https://docs.astral.sh/ruff/) is the linter and formatter for the whole
+workspace. It is a dev dependency of the workspace root and is configured in
+`[tool.ruff]` in the root `pyproject.toml`. From the repo root:
+
+```bash
+uv run ruff check .            # lint (add --fix to apply safe fixes)
+uv run ruff format .           # format in place
+uv run ruff format --check .   # what CI runs: fail if anything would change
+```
+
+The rule set is ruff's defaults plus **UP045**: write optional types as
+`X | None`, not `typing.Optional[X]` (PEP 604; the code targets Python 3.10+).
+FastAPI's `Depends`/`Form`/`Query` are whitelisted for bugbear's B008, since
+calling them in argument defaults is how FastAPI works. CI runs both ruff checks
+before the tests, so run them before pushing.
 
 ## Frontend URLs
 
@@ -107,13 +125,15 @@ Configuration is environment-only:
 - frontend: `BACKEND_URL`
 - both: `PORT`
 
-The GitHub Actions workflow runs the frontend tests, then publishes the image
+The GitHub Actions workflow runs `ruff check`, `ruff format --check` and the
+frontend tests, then publishes the image
 to GHCR on pushes to `main` and `v*` tags.
 
 ## Files
 
 - `pyproject.toml` — uv workspace root (members: `frontend`, `backend`,
-  `models`). The shared `uv.lock` lives next to it.
+  `models`), the root `dev` group (ruff) and the ruff config. The shared
+  `uv.lock` lives next to it.
 - `sql_ddl/schema.sql`, `sql_ddl/v_absences.sql` — the PostgreSQL schema and
   the `v_absences` view, which splits multi-month absences into one row per
   month. They are applied by hand: the apps never create or migrate tables.
