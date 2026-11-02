@@ -10,6 +10,7 @@ dependencies = [
     "pydantic-settings>=2.0",
     "psycopg[binary]>=3.1",
     "models",
+    "ruff>=0.17.3",
 ]
 
 [tool.uv]
