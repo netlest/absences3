@@ -101,7 +101,8 @@ BACKEND_VERSION = {"version": "dev", "build_date": ""}
 
 @pytest.fixture(autouse=True)
 def fake_backend(monkeypatch):
-    # Per-test stand-in for the prefs slot inside sessions.data.
+    # Per-test stand-in for the users.prefs column: like the real one it is
+    # per user, not per session, so it survives logout and re-login.
     session_prefs: dict = {}
 
     def fake_login(username, password):
@@ -745,6 +746,22 @@ def test_empty_prefs_fall_back_to_the_current_month(client, fake_backend):
         "year": today.year,
         "group": 1,
     }
+
+
+def test_saved_view_survives_logout_and_relogin(client, fake_backend):
+    client.get("/11/2026?months=7&group=2")
+    client.post("/logout", follow_redirects=False)
+    c = TestClient(app)
+    r = c.post(
+        "/login",
+        data={"username": "admin", "password": "secret"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    r = c.get("/")
+    assert "November 2026" in r.text
+    assert 'value="7" selected' in r.text
+    assert len(fake_backend["prefs"]) == 1  # resumed, not reset
 
 
 def test_prefs_show_up_in_debug_session(client):

@@ -105,10 +105,11 @@ before the tests, so run them before pushing.
 | `/version`                   | frontend + backend build (no login)     |
 
 `/` with no query parameters resumes the last view — month, year, month
-count and group are written into `sessions.data` on every navigation
-(last view wins) and read back on the next request. They live and die
-with the session: logout deletes the row, so a fresh login starts on the
-current month again.
+count and group are written to the user's `users.prefs` column on every
+navigation (last view wins) and read back on the next request. They are
+kept permanently per user, independent of the session: after a logout or
+an expired session (`SESSION_TTL_HOURS`) the next login resumes the same
+view. Only a user with no saved prefs starts on the current month.
 
 ## Docker
 
@@ -149,6 +150,9 @@ version is `dev`.
 - `sql_ddl/schema.sql`, `sql_ddl/v_absences.sql` — the PostgreSQL schema and
   the `v_absences` view, which splits multi-month absences into one row per
   month. They are applied by hand: the apps never create or migrate tables.
+- `sql_ddl/migrations/` — numbered, idempotent upgrade scripts for databases
+  created from an older `schema.sql`; apply them in order with
+  `psql -d kalendarz -v ON_ERROR_STOP=1 -f sql_ddl/migrations/<file>.sql`.
 - `models/src/models/__init__.py` — declarative models mirroring the DDL,
   importable as `from models import User, Absence, VAbsence, ...`.
 - `backend/app.py` — the whole API. Login issues an opaque bearer token stored

@@ -107,7 +107,7 @@ def get_me(token: str) -> dict:
 
 
 def save_prefs(token: str, prefs: dict) -> dict:
-    """Store the calendar view choices in the session payload."""
+    """Store the calendar view choices permanently on the user's profile."""
     return _request("PUT", "/auth/prefs", token, json=prefs)
 
 

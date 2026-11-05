@@ -126,10 +126,11 @@ def _render(
     months: int | None = None,
     group: int | None = None,
 ) -> Response:
-    """Render the calendar; None arguments fall back to the session's prefs.
+    """Render the calendar; None arguments fall back to the user's saved prefs.
 
-    Whatever the request ends up showing is written back to the session, so
-    the next visit without query parameters resumes here (last view wins).
+    Whatever the request ends up showing is saved to the user's profile, so
+    the next visit without query parameters resumes here (last view wins),
+    even after logging out or the session expiring.
     """
     if month is not None and not (1 <= month <= 12):
         raise HTTPException(status_code=404, detail="Month must be 1-12")
@@ -638,7 +639,8 @@ def debug_session(request: Request) -> JSONResponse:
     """Dump the caller's own session as JSON, for debugging.
 
     Shows the session cookie this request carried and the payload the backend
-    keeps for that token in `sessions.data` (user_id / username / admin).
+    keeps for that token in `sessions.data` (user_id / username / admin),
+    plus the user's saved view prefs.
     Scoped to the caller: it reads only the cookie the browser sent, so it
     cannot reveal anyone else's session. Always answers 200 — `status` says
     what happened, so a failure is readable in the browser instead of an
@@ -675,7 +677,7 @@ def debug_session(request: Request) -> JSONResponse:
 def current_month(
     request: Request, months: int | None = None, group: int | None = None
 ):
-    """Resumes the session's last view; falls back to the current month."""
+    """Resumes the user's last view; falls back to the current month."""
     return _render(request, None, None, months, group)
 
 
