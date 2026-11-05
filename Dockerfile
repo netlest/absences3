@@ -3,6 +3,7 @@
 #
 #   docker run ... ghcr.io/netlest/absences3 backend    # API on :8001
 #   docker run ... ghcr.io/netlest/absences3 frontend   # UI  on :8000
+#   docker run ... ghcr.io/netlest/absences3 migrate    # apply sql_ddl/migrations
 #
 # Configuration is environment-only (no .env files are baked in):
 #   backend:  DATABASE_URL (required), SESSION_TTL_HOURS (default 48)
@@ -28,6 +29,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 COPY backend/ backend/
 COPY frontend/ frontend/
 COPY models/ models/
+COPY sql_ddl/ sql_ddl/
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --all-packages
 
