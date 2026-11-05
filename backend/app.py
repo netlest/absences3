@@ -106,7 +106,6 @@ def login(body: LoginRequest, db: Session = Depends(get_db)) -> dict:
         "user_id": user.id,
         "username": user.username,
         "admin": user.admin,
-        "prefs": {},
     }
     db.add(
         UserSession(
@@ -116,7 +115,7 @@ def login(body: LoginRequest, db: Session = Depends(get_db)) -> dict:
         )
     )
     db.commit()
-    return {"token": token, "user": payload}
+    return {"token": token, "user": {**payload, "prefs": user.prefs or {}}}
 
 
 @app.post("/auth/logout")
@@ -129,8 +128,10 @@ def logout(
 
 
 @app.get("/auth/me")
-def me(user: dict = Depends(current_user)) -> dict:
-    return user
+def me(user: dict = Depends(current_user), db: Session = Depends(get_db)) -> dict:
+    """The session payload plus the user's saved prefs (read from `users`)."""
+    prefs = db.scalar(select(User.prefs).where(User.id == user["user_id"]))
+    return {**user, "prefs": prefs or {}}
 
 
 class PrefsRequest(BaseModel):
@@ -145,19 +146,18 @@ class PrefsRequest(BaseModel):
 @app.put("/auth/prefs")
 def save_prefs(
     body: PrefsRequest,
-    sess: UserSession = Depends(_session_or_401),
+    user: dict = Depends(current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    """Merge the caller's view choices into their own session payload.
+    """Store the caller's view choices on their own `users` row.
 
-    Lives in sessions.data, so it survives navigation and reloads for the
-    session's TTL and dies with it — logout deletes the row.
+    Kept permanently (across logouts and session expiry), unlike the session
+    payload; the next login resumes the last view.
     """
-    payload = json.loads(sess.data or b"{}")
-    payload["prefs"] = body.model_dump()
-    sess.data = json.dumps(payload).encode()
+    prefs = body.model_dump()
+    db.execute(update(User).where(User.id == user["user_id"]).values(prefs=prefs))
     db.commit()
-    return payload["prefs"]
+    return prefs
 
 
 class PasswordChange(BaseModel):
