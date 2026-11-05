@@ -20,7 +20,7 @@ Ruff is the linter and formatter (root `dev` dependency group; config in `[tool.
 
 ### Local database
 
-The backend needs PostgreSQL. Local dev uses a database `kalendarz` over the Unix socket (peer auth): `DATABASE_URL=postgresql+psycopg:///kalendarz` in `backend/.env` (copy `backend/.env.example`; `database_url` has no default, so the backend won't start without it). The schema is applied by hand from `sql_ddl/schema.sql` then `sql_ddl/v_absences.sql` — the app never creates or migrates tables (no `create_all`). Schema changes also get an idempotent upgrade script in `sql_ddl/migrations/` for existing databases. `uv run --directory backend python seed_dev.py` seeds an empty DB (login `admin`/`admin`); it's a no-op once `users` has rows. Full setup steps are in README.md.
+The backend needs PostgreSQL. Local dev uses a database `kalendarz` over the Unix socket (peer auth): `DATABASE_URL=postgresql+psycopg:///kalendarz` in `backend/.env` (copy `backend/.env.example`; `database_url` has no default, so the backend won't start without it). The schema is applied by hand from `sql_ddl/schema.sql` then `sql_ddl/v_absences.sql` — the app never creates or migrates tables (no `create_all`). Schema changes also get an idempotent upgrade script in `sql_ddl/migrations/` for existing databases; `backend/migrate.py` (Docker: `migrate` command) re-runs all of them in name order on every deploy, so they must be safe to re-run. `uv run --directory backend python seed_dev.py` seeds an empty DB (login `admin`/`admin`); it's a no-op once `users` has rows. Full setup steps are in README.md.
 
 ### Docker
 

@@ -119,6 +119,7 @@ app runs:
 ```bash
 docker run -e DATABASE_URL=... ghcr.io/netlest/absences3 backend    # API on :8001
 docker run -e BACKEND_URL=...  ghcr.io/netlest/absences3 frontend   # UI  on :8000
+docker run -e DATABASE_URL=... ghcr.io/netlest/absences3 migrate    # upgrade the DB schema
 ```
 
 Configuration is environment-only:
@@ -130,6 +131,22 @@ Configuration is environment-only:
 The GitHub Actions workflow runs `ruff check`, `ruff format --check` and the
 frontend tests, then publishes the image
 to GHCR on pushes to `main` and `v*` tags.
+
+### Upgrading a deployment
+
+`docker compose up -d` does not re-pull an image tag it already has, so pull
+explicitly. Run the migrations with the new image *before* starting it — they
+are idempotent, so running them on every deploy is safe:
+
+```bash
+docker compose pull
+docker compose run --rm absences-backend migrate
+docker compose up -d
+```
+
+`migrate` applies every `sql_ddl/migrations/*.sql` in name order through the
+backend's own driver (the image has no `psql`), each script in its own
+transaction, and stops at the first failure.
 
 ### Which build is running?
 
@@ -151,8 +168,9 @@ version is `dev`.
   the `v_absences` view, which splits multi-month absences into one row per
   month. They are applied by hand: the apps never create or migrate tables.
 - `sql_ddl/migrations/` — numbered, idempotent upgrade scripts for databases
-  created from an older `schema.sql`; apply them in order with
-  `psql -d kalendarz -v ON_ERROR_STOP=1 -f sql_ddl/migrations/<file>.sql`.
+  created from an older `schema.sql`. Apply them all with
+  `uv run --directory backend python migrate.py` (or the image's `migrate`
+  command); they must stay safe to re-run.
 - `models/src/models/__init__.py` — declarative models mirroring the DDL,
   importable as `from models import User, Absence, VAbsence, ...`.
 - `backend/app.py` — the whole API. Login issues an opaque bearer token stored

@@ -10,6 +10,5 @@
 .env
 **/.env
 frontend/tests
-sql_ddl
 *.md
 docker-compose*.yml
