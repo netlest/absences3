@@ -17,7 +17,9 @@ from sqlalchemy import (
     Table,
     false,
     func,
+    text,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 __all__ = [
@@ -66,6 +68,9 @@ class User(Base):
     updated_at: Mapped[datetime | None] = mapped_column(
         DateTime, server_default=func.current_timestamp()
     )
+    # Calendar view choices ({"months", "month", "year", "group"}), kept
+    # across logins — unlike sessions.data, which dies with the session.
+    prefs: Mapped[dict] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
 
     owned_groups: Mapped[list["Group"]] = relationship(back_populates="owner")
     groups: Mapped[list["Group"]] = relationship(
