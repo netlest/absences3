@@ -13,6 +13,8 @@ client; this goes through the backend's own psycopg driver.
 import sys
 from pathlib import Path
 
+import psycopg
+
 MIGRATIONS_DIR = Path(__file__).resolve().parent.parent / "sql_ddl" / "migrations"
 
 
@@ -38,7 +40,7 @@ def main() -> int:
                     # script in one simple-protocol query.
                     cur.execute(path.read_text())
                 raw.commit()
-            except Exception as exc:
+            except psycopg.Error as exc:
                 raw.rollback()
                 print(f"FAILED {path.name}: {exc}", file=sys.stderr)
                 return 1
